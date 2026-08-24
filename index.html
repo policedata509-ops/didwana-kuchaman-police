@@ -3468,7 +3468,7 @@ function go(id){
   const btn=document.querySelector(`nav button[data-pg="${id}"]`);
   if(btn) btn.classList.add('on');
   window.scrollTo({top:0});
-  if(id==='dashboard' && typeof renderAll==='function') renderAll();
+  if(id==='dashboard' && typeof renderAll==='function'){ if(typeof initControls==='function') initControls(); renderAll(); }
   if(id==='mob' && typeof mobInit==='function') mobInit();
   if(id==='settings' && typeof renderCustomPagesSettings==='function') renderCustomPagesSettings();
   if(id==='monitor' && typeof monInitSelects==='function') monInitSelects();
@@ -8108,6 +8108,8 @@ function handleDbFile(evt){
       buildRecords();
       initControls();
       renderAll();
+      if(typeof renderActWatch==='function') renderActWatch();
+      if(typeof renderHomeDeadlineAlert==='function') renderHomeDeadlineAlert();
       const FIELD_LABELS_HI = {ps:'PS/थाना', firDate:'FIR Reg Date', disposal:'Disposal Status', infoSource:'Information Source'};
       const missingCols = ['ps','firDate','disposal','infoSource'].filter(f=>!colMap[f]);
       const statusElDb = document.getElementById('dbUploadStatus');
@@ -8415,6 +8417,7 @@ async function loadLiveData(){
   if(results[2].status==='fulfilled'){ RAW = results[2].value; successCount++; } else errors['SAS Export'] = String(results[2].reason && results[2].reason.message || results[2].reason);
   if(results[3].status==='fulfilled'){ WANTED_DATA = results[3].value; successCount++; } else errors['वांछित अपराधी रजिस्टर'] = String(results[3].reason && results[3].reason.message || results[3].reason);
   SEARCH_IDX = null;
+  buildRecords(); // RAW ताज़ा हुआ है — dbRecords (dashboard का डेटा-स्रोत) भी दोबारा बनाना ज़रूरी है, वरना dashboard पुराना डेटा दिखाता रहता है
   LIVE_SYNC_STATE = {status: successCount===4?'live':(successCount>0?'partial':'offline'), time:new Date(), errors};
   if(successCount>0) saveOfflineCache(); // जो भी नया मिला उसे तुरंत ऑफलाइन-कैश में भी सहेज लें
   updateSyncBanner();
@@ -8422,7 +8425,7 @@ async function loadLiveData(){
   const activePg = document.querySelector('.pg.on');
   if(activePg){
     const id = activePg.id;
-    if(id==='dashboard' && typeof renderAll==='function') renderAll();
+    if(id==='dashboard' && typeof renderAll==='function'){ initControls(); renderAll(); }
     if(id==='disp60') renderDisposalPage(60);
     if(id==='disp90') renderDisposalPage(90);
     if(id==='pendency') renderPendencyPage();
@@ -8842,10 +8845,11 @@ function parseColorToRgbArr(colorStr){
 // ============================================================
 function refreshAfterDataChange(){
   SEARCH_IDX = null;
+  buildRecords(); // यहाँ भी RAW ताज़ा हो सकता है — dbRecords को हमेशा दोबारा बनाएं
   const activePg = document.querySelector('.pg.on');
   if(activePg){
     const id = activePg.id;
-    if(id==='dashboard' && typeof renderAll==='function') renderAll();
+    if(id==='dashboard' && typeof renderAll==='function'){ initControls(); renderAll(); }
     if(id==='disp60') renderDisposalPage(60);
     if(id==='disp90') renderDisposalPage(90);
     if(id==='pendency') renderPendencyPage();

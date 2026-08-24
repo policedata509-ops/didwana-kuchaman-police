@@ -2868,8 +2868,8 @@ function clearAllLocalEntryData(){
 // ============================================================
 // केंद्रीय सर्वर — URL और Key हार्डकोड (थानाकर्मी को कुछ सेट नहीं करना)
 // ============================================================
-const HARDCODED_SYNC_URL = 'https://script.google.com/macros/s/AKfycbwXnsq8Pq9n8-QTHpr-h66uqhveWHypgq3hV--LmjgxQSL_6PniubQUygaXx1Fb0wb9HQ/exec';
-const HARDCODED_SYNC_SECRET = 'DK-POLICE-SHEETWRITE-509';
+const HARDCODED_SYNC_URL = 'https://script.google.com/macros/s/AKfycbyU0zeZrC8rfOqxctbjNggfYaBa_9rSH4gKOgMYXC17gX8N-y83MBh6zxOUcQjoKhleZQ/exec';
+const HARDCODED_SYNC_SECRET = 'DK-POLICE-M-509';
 const SYNC_URL_KEY='dk_sync_url', SYNC_SECRET_KEY='dk_sync_secret';
 // हमेशा hardcoded मान लौटाएँ — localStorage override की ज़रूरत नहीं
 function getSyncUrl(){ return HARDCODED_SYNC_URL; }
@@ -2962,7 +2962,7 @@ async function bulkSyncAll(progressCb){
 // डिप्लॉयमेंट प्रक्रिया व कोड दिया गया है (देखें SHEET_WRITE_URL)।
 // ============================================================
 // ⚠️ यहाँ अपनी Apps Script Web App की URL डालें (deploy करने के बाद मिलेगी)
-const SHEET_WRITE_URL = 'https://script.google.com/macros/s/AKfycbwXnsq8Pq9n8-QTHpr-h66uqhveWHypgq3hV--LmjgxQSL_6PniubQUygaXx1Fb0wb9HQ/exec';
+const SHEET_WRITE_URL = 'https://script.google.com/macros/s/AKfycbzh7SSnHO8kTUv7US4EWrJI60GokB3e7-d8bthtPolifjdHxttTL82wwpTDVW-iMwGtzA/exec';
 const SHEET_WRITE_SECRET_DEFAULT = 'DK-POLICE-SHEETWRITE-509';
 function getSheetWriteSecret(){ try{ return localStorage.getItem('dkSheetWriteSecretOverride') || SHEET_WRITE_SECRET_DEFAULT; }catch(e){ return SHEET_WRITE_SECRET_DEFAULT; } }
 function isSheetWriteConfigured(){ return !!SHEET_WRITE_URL; }
@@ -8134,10 +8134,10 @@ initSelects();
 //  जाएगा और पोर्टल स्वतः पहले से मौजूद snapshot डेटा दिखाता रहेगा — ऑफलाइन भी काम करता है)
 // ============================================================
 const SHEET_IDS = {
-  gen: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_klbEHvkBMjng',
-  fdc: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_klbEHvkBMjng',
-  sas: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_klbEHvkBMjng',
-  wanted: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_klbEHvkBMjng'
+  gen: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng',
+  fdc: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng',
+  sas: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng',
+  wanted: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng'
 };
 // चारों एक ही Google Sheet में अलग-अलग टैब (tabs) पर हैं — टैब का नाम मायने रखता है
 const SHEET_TABS = { gen:'Generic', fdc:'FDC', sas:'SAS', wanted:'Wanted', trend:'TrendHistory' };

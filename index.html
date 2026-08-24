@@ -553,6 +553,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   --warn-tint:#FEF2F2;--amber-tint:#FFFBEB;--blue-tint:#EFF6FF;--gold-tint:#EEF0FF;
   --hdr-bg:#1E293B;--hdr-bg2:#182130;--hdr-ink:#F1F5FB;--hdr-soft:#9FADC6;--hdr-line:rgba(255,255,255,.08);--hdr-hover:rgba(255,255,255,.07);
 }
+html[data-theme="dark"]{
+  --paper:#12161F;--card:#1B212E;--ink:#E7EAF0;--soft:#94A0B8;--line:#2C3444;
+  --good-tint:#0E2620;--warn-tint:#2A1416;--amber-tint:#2A2110;--blue-tint:#0E1A2A;--gold-tint:#1B1A2E;
+  --hdr-bg:#0E1420;--hdr-bg2:#0A0F18;--hdr-ink:#F1F5FB;--hdr-soft:#8592AC;--hdr-line:rgba(255,255,255,.08);--hdr-hover:rgba(255,255,255,.06);
+  --sh-sm:0 1px 2px rgba(0,0,0,.3),0 1px 3px rgba(0,0,0,.35);
+  --sh-md:0 6px 16px rgba(0,0,0,.35),0 2px 5px rgba(0,0,0,.25);
+  --sh-lg:0 20px 40px rgba(0,0,0,.45),0 6px 14px rgba(0,0,0,.3);
+}
+html[data-theme="dark"] table, html[data-theme="dark"] .data-tbl{ color:var(--ink); }
+html[data-theme="dark"] input, html[data-theme="dark"] select, html[data-theme="dark"] textarea{ background:#232B3A; color:var(--ink); border-color:var(--line); }
+html[data-theme="dark"] .case-field input, html[data-theme="dark"] .case-field textarea, html[data-theme="dark"] .case-field select{ background:#2B2610; }
+html[data-theme="dark"] .case-field input[readonly]{ background:#232B3A; }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{font-family:'Hind','Noto Sans Devanagari',system-ui,sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;overflow-x:hidden}
@@ -1127,15 +1139,18 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
   <button data-pg="summon" onclick="go('summon')">📨 सम्मन/वारंट शाखा</button>
   <button data-pg="malkhana" onclick="go('malkhana')">🗄️ मालखाना शाखा</button>
   <button data-pg="wantedReg" onclick="go('wantedReg')">🔍 वांछित अपराधी रजिस्टर (खोज)</button>
+  <button data-pg="myPending" onclick="go('myPending')">👮 मेरी पेंडिंग फाइलें (IO/थाना अधिकारी)</button>
   <button data-pg="dashboard" onclick="go('dashboard')">📊 अपराध डैशबोर्ड</button>
   <button data-pg="district" onclick="adminGo('district')">📊 जिला योग (एडमिन)</button>
   <button data-pg="monitor" onclick="adminGo('monitor')">📶 सूचना मॉनिटरिंग</button>
-  <button data-pg="actWatch" onclick="adminGo('actWatch')">⚖️ आबकारी/जुआ/आर्म्स/NDPS निगरानी</button>
+  <button data-pg="actWatch" onclick="go('actWatch')">⚖️ आबकारी/जुआ/आर्म्स/NDPS निगरानी</button>
   <button data-pg="settings" onclick="adminGo('settings')">⚙️ सेटिंग्स</button>
   <button data-pg="disp60" onclick="go('disp60')">⏱️ 60 दिवस निस्तारण</button>
   <button data-pg="disp90" onclick="go('disp90')">⏱️ 90 दिवस निस्तारण</button>
   <button data-pg="pendency" onclick="go('pendency')">📉 पेंडेंसी रैंकिंग</button>
   <button data-pg="univsearch" onclick="go('univsearch')">🔎 यूनिवर्सल सर्च</button>
+  <button onclick="toggleDarkMode()" id="darkModeToggleBtn">🌙 डार्क मोड</button>
+  <button onclick="triggerPwaInstall()" id="pwaInstallBtn" style="display:none;">📲 होम स्क्रीन पर इंस्टॉल करें</button>
 </nav>
 <div id="navBackdrop" class="nav-backdrop" onclick="closeNav()"></div>
 <script>
@@ -1310,6 +1325,15 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
       </div>
       <p id="trendSnapshotStatus" style="font-size:12.5px;margin-top:8px;color:var(--soft)"></p>
       <div style="margin-top:10px;height:280px;"><canvas id="trendChartCanvas"></canvas></div>
+    </div>
+
+    <div class="pcard" style="--ca:#128C7E;margin-top:14px">
+      <div class="pcard-head"><div class="pcard-icon">📲</div><span class="pcard-badge">शेयर</span></div>
+      <div class="pcard-title">डैशबोर्ड स्थिति WhatsApp पर भेजें</div>
+      <div class="pcard-desc">वर्तमान स्रोत व फिल्टर के अनुसार 60/90-दिन निस्तारण व पेंडेंसी का संक्षिप्त टेक्स्ट सारांश तैयार होकर WhatsApp में खुल जाएगा — बस भेजने वाला चुनना बाकी रहेगा।</div>
+      <div class="pcard-actions">
+        <button class="btn-fill sm" style="background:linear-gradient(135deg,#25D366,#128C7E)" onclick="shareDashboardWhatsapp()">📲 WhatsApp पर सारांश भेजें</button>
+      </div>
     </div>
 
     <div class="summary" id="summaryRow"></div>
@@ -2387,6 +2411,34 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
       <div id="uploadHistoryBox" style="margin-top:10px;"></div>
     </div>
 
+    <div class="pcard" style="--ca:#B71C1C">
+      <div class="pcard-head"><div class="pcard-icon">🔐</div><span class="pcard-badge">सुरक्षा</span></div>
+      <div class="pcard-title">पासवर्ड व सुरक्षा कोड बदलें</div>
+      <div class="pcard-desc">
+        <b>एडमिन पासवर्ड</b> (Settings/जिला योग/मॉनिटरिंग खोलने हेतु) — यहाँ से बदलने पर सिर्फ़ <u>इसी ब्राउज़र/डिवाइस</u> पर लागू होगा। सभी डिवाइस पर बदलना हो तो पोर्टल कोड में <code>ADMIN_PASSWORD_DEFAULT</code> लाइन बदलकर दोबारा अपलोड करें।
+      </div>
+      <div class="ctx-grid" style="margin-top:8px;">
+        <div><label>नया एडमिन पासवर्ड</label><input type="text" id="newAdminPwInput" placeholder="कम से कम 6 अक्षर"></div>
+      </div>
+      <div class="pcard-actions">
+        <button class="btn-fill sm" style="background:linear-gradient(135deg,#B71C1C,#7F0000)" onclick="changeAdminPasswordUI()">🔐 पासवर्ड बदलें</button>
+        <button class="btn-ghost sm" onclick="resetAdminPasswordUI()">डिफ़ॉल्ट पर वापस लाएं</button>
+      </div>
+      <p id="adminPwChangeStatus" style="font-size:12.5px;margin-top:8px;color:var(--soft)"></p>
+
+      <div class="pcard-desc" style="margin-top:14px;">
+        <b>Apps Script Secret</b> (डेटा Google Sheet में लिखने हेतु) — इसे बदलने पर <u>Apps Script कोड में भी वही Secret</u> डालना ज़रूरी है, वरना अपलोड फेल हो जाएगा।
+      </div>
+      <div class="ctx-grid" style="margin-top:8px;">
+        <div><label>नया Sheet-write Secret</label><input type="text" id="newSheetSecretInput" placeholder="Apps Script वाले SECRET से मेल खाना चाहिए"></div>
+      </div>
+      <div class="pcard-actions">
+        <button class="btn-fill sm" style="background:linear-gradient(135deg,#B71C1C,#7F0000)" onclick="changeSheetSecretUI()">🔐 Secret बदलें</button>
+        <button class="btn-ghost sm" onclick="resetSheetSecretUI()">डिफ़ॉल्ट पर वापस लाएं</button>
+      </div>
+      <p id="sheetSecretChangeStatus" style="font-size:12.5px;margin-top:8px;color:var(--soft)"></p>
+    </div>
+
     <div class="pcard" style="--ca:#37474F">
       <div class="pcard-head"><div class="pcard-icon">🔄</div><span class="pcard-badge">पुराना डेटा</span></div>
       <div class="pcard-title">पुराना (इस फोन में सेव) डेटा सर्वर पर भेजें</div>
@@ -2548,6 +2600,30 @@ function reply(obj) {
       </div>
     </div>
     <div id="aw-result" style="margin-top:16px"></div>
+  </div>
+</div>
+
+<!-- ============================================================ मेरी पेंडिंग फाइलें (IO/थाना अधिकारी) ============================================================ -->
+<div class="pg" id="myPending">
+  <div class="banner" style="background:linear-gradient(180deg,#00695C,#00332C)">
+    <div class="b-icon">👮</div>
+    <h1>मेरी पेंडिंग फाइलें</h1><p>अनुसंधान अधिकारी अपना नाम, या थाना अधिकारी अपना थाना चुनकर अपनी पेंडिंग फाइलें देखें/डाउनलोड करें</p>
+  </div>
+  <div class="wrap">
+    <div class="intro" style="border-top-color:#00695C">
+      <b>निर्देश:</b> यदि आप <b>अनुसंधान अधिकारी</b> हैं तो नीचे अपना नाम चुनें (एक से ज़्यादा नाम/स्पेलिंग वैरिएशन एक साथ चुन सकते हैं)। यदि आप <b>थाना अधिकारी</b> हैं और अपने थाने की सभी पेंडिंग फाइलें (सभी IO सहित) देखना चाहते हैं तो अपना थाना चुनें। दोनों में से कोई एक या दोनों चुन सकते हैं — डेटा Generic(13) स्रोत पर आधारित है (सबसे विश्वसनीय)।
+    </div>
+    <div class="ctx-bar">
+      <div class="ctx-grid">
+        <div><label>अनुसंधान अधिकारी (एक या अधिक)</label><div id="mpIOFilter"></div></div>
+        <div><label>थाना (एक या अधिक)</label><div id="mpStationFilter"></div></div>
+      </div>
+      <div style="margin-top:12px">
+        <button class="btn-fill" style="background:linear-gradient(135deg,#00695C,#00332C)" onclick="runMyPendingSearch()">🔍 देखें</button>
+        <button class="btn-fill sm" style="background:linear-gradient(135deg,#37474F,#1B262C)" onclick="downloadMyPendingList()">📥 सूची डाउनलोड करें (Excel)</button>
+      </div>
+    </div>
+    <div id="mp-result" style="margin-top:16px"></div>
   </div>
 </div>
 
@@ -2792,8 +2868,8 @@ function clearAllLocalEntryData(){
 // ============================================================
 // केंद्रीय सर्वर — URL और Key हार्डकोड (थानाकर्मी को कुछ सेट नहीं करना)
 // ============================================================
-const HARDCODED_SYNC_URL = 'https://script.google.com/macros/s/AKfycbyU0zeZrC8rfOqxctbjNggfYaBa_9rSH4gKOgMYXC17gX8N-y83MBh6zxOUcQjoKhleZQ/exec';
-const HARDCODED_SYNC_SECRET = 'DK-POLICE-M-509';
+const HARDCODED_SYNC_URL = 'https://script.google.com/macros/s/AKfycbwXnsq8Pq9n8-QTHpr-h66uqhveWHypgq3hV--LmjgxQSL_6PniubQUygaXx1Fb0wb9HQ/exec';
+const HARDCODED_SYNC_SECRET = 'DK-POLICE-SHEETWRITE-509';
 const SYNC_URL_KEY='dk_sync_url', SYNC_SECRET_KEY='dk_sync_secret';
 // हमेशा hardcoded मान लौटाएँ — localStorage override की ज़रूरत नहीं
 function getSyncUrl(){ return HARDCODED_SYNC_URL; }
@@ -2886,8 +2962,9 @@ async function bulkSyncAll(progressCb){
 // डिप्लॉयमेंट प्रक्रिया व कोड दिया गया है (देखें SHEET_WRITE_URL)।
 // ============================================================
 // ⚠️ यहाँ अपनी Apps Script Web App की URL डालें (deploy करने के बाद मिलेगी)
-const SHEET_WRITE_URL = 'https://script.google.com/macros/s/AKfycbzh7SSnHO8kTUv7US4EWrJI60GokB3e7-d8bthtPolifjdHxttTL82wwpTDVW-iMwGtzA/exec';
-const SHEET_WRITE_SECRET = 'DK-POLICE-SHEETWRITE-509';
+const SHEET_WRITE_URL = 'https://script.google.com/macros/s/AKfycbwXnsq8Pq9n8-QTHpr-h66uqhveWHypgq3hV--LmjgxQSL_6PniubQUygaXx1Fb0wb9HQ/exec';
+const SHEET_WRITE_SECRET_DEFAULT = 'DK-POLICE-SHEETWRITE-509';
+function getSheetWriteSecret(){ try{ return localStorage.getItem('dkSheetWriteSecretOverride') || SHEET_WRITE_SECRET_DEFAULT; }catch(e){ return SHEET_WRITE_SECRET_DEFAULT; } }
 function isSheetWriteConfigured(){ return !!SHEET_WRITE_URL; }
 
 /** अपलोड की गई फाइल का raw aoa (header row + data rows) सीधे लिंक्ड Google Sheet में लिखता है
@@ -2898,7 +2975,7 @@ async function pushSheetUpdate(type, aoa, mode){
     const res = await fetch(SHEET_WRITE_URL, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({secret:SHEET_WRITE_SECRET, type, aoa, mode: mode||'replace'}),
+      body: JSON.stringify({secret:getSheetWriteSecret(), type, aoa, mode: mode||'replace'}),
       redirect:'follow'
     });
     const text = await res.text();
@@ -2923,6 +3000,26 @@ function saveSyncSettings(){
 // हर "स्नैपशॉट" एक पंक्ति है: [तिथि, स्रोत, 60-कुल, 60-निस्तारित, 60-पेंडिंग,
 // 60-अनुपालना%, 90-कुल, 90-निस्तारित, 90-पेंडिंग, 90-अनुपालना%]
 // ============================================================
+function shareDashboardWhatsapp(){
+  try{
+    const source = (GEN && GEN.length) ? 'generic' : 'automerge';
+    function summarize(limit){
+      const rows = buildRowsForSource(source, limit, null);
+      const total = rows.length;
+      const disposed = rows.filter(r=>r.disposed).length;
+      const pending = total - disposed;
+      const compPct = total ? (disposed/total*100) : 0;
+      return {total, disposed, pending, compPct};
+    }
+    const s60 = summarize(60), s90 = summarize(90);
+    const today = new Date().toLocaleDateString('hi-IN');
+    let msg = `*डीडवाना-कुचामन पुलिस — अपराध डैशबोर्ड सारांश*\n📅 दिनांक: ${today}\n\n`;
+    msg += `*60-दिवस निस्तारण:*\nकुल: ${s60.total} | निस्तारित: ${s60.disposed} | पेंडिंग: ${s60.pending} | अनुपालना: ${s60.compPct.toFixed(1)}%\n\n`;
+    msg += `*90-दिवस निस्तारण:*\nकुल: ${s90.total} | निस्तारित: ${s90.disposed} | पेंडिंग: ${s90.pending} | अनुपालना: ${s90.compPct.toFixed(1)}%\n`;
+    const url = 'https://wa.me/?text=' + encodeURIComponent(msg);
+    window.open(url, '_blank');
+  }catch(e){ toast('सारांश तैयार नहीं हो पाया — पहले डेटा लोड होने का इंतज़ार करें'); }
+}
 async function saveTrendSnapshot(){
   const statusEl = document.getElementById('trendSnapshotStatus');
   statusEl.textContent = '🔄 आज का डेटा गणना कर रहे हैं...';
@@ -2982,6 +3079,38 @@ async function loadTrendChart(){
   }catch(e){
     if(statusEl) statusEl.textContent = 'चार्ट लोड नहीं हो पाया — शायद अभी तक कोई स्नैपशॉट सेव नहीं हुआ है।';
   }
+}
+// ============================================================
+// पासवर्ड/Secret बदलना — localStorage में सेव होता है, इसी ब्राउज़र/डिवाइस
+// के लिए लागू होता है (सभी डिवाइस पर बदलने हेतु कोड में डिफ़ॉल्ट बदलें)
+// ============================================================
+function changeAdminPasswordUI(){
+  const val = document.getElementById('newAdminPwInput').value.trim();
+  const statusEl = document.getElementById('adminPwChangeStatus');
+  if(val.length<6){ statusEl.innerHTML = '🔴 पासवर्ड कम से कम 6 अक्षर का होना चाहिए।'; return; }
+  try{
+    localStorage.setItem('dkAdminPasswordOverride', val);
+    statusEl.innerHTML = '🟢 पासवर्ड बदल दिया गया — अगली बार से यही नया पासवर्ड इसी डिवाइस पर काम करेगा।';
+    document.getElementById('newAdminPwInput').value='';
+  }catch(e){ statusEl.innerHTML = '🔴 सेव नहीं हो पाया।'; }
+}
+function resetAdminPasswordUI(){
+  try{ localStorage.removeItem('dkAdminPasswordOverride'); }catch(e){}
+  document.getElementById('adminPwChangeStatus').innerHTML = '🟢 डिफ़ॉल्ट पासवर्ड पर वापस आ गया।';
+}
+function changeSheetSecretUI(){
+  const val = document.getElementById('newSheetSecretInput').value.trim();
+  const statusEl = document.getElementById('sheetSecretChangeStatus');
+  if(val.length<6){ statusEl.innerHTML = '🔴 Secret कम से कम 6 अक्षर का होना चाहिए।'; return; }
+  try{
+    localStorage.setItem('dkSheetWriteSecretOverride', val);
+    statusEl.innerHTML = '🟡 Secret इसी डिवाइस पर बदल दिया गया — याद रखें, Apps Script कोड में भी बिल्कुल यही Secret डालकर दोबारा Deploy करना ज़रूरी है, वरना अपलोड फेल होगा।';
+    document.getElementById('newSheetSecretInput').value='';
+  }catch(e){ statusEl.innerHTML = '🔴 सेव नहीं हो पाया।'; }
+}
+function resetSheetSecretUI(){
+  try{ localStorage.removeItem('dkSheetWriteSecretOverride'); }catch(e){}
+  document.getElementById('sheetSecretChangeStatus').innerHTML = '🟢 डिफ़ॉल्ट Secret पर वापस आ गया (Apps Script में भी डिफ़ॉल्ट होना चाहिए)।';
 }
 async function loadUploadHistory(){
   const box = document.getElementById('uploadHistoryBox');
@@ -3418,6 +3547,7 @@ function go(id){
   if(id==='settings' && typeof renderCustomPagesSettings==='function') renderCustomPagesSettings();
   if(id==='monitor' && typeof monInitSelects==='function') monInitSelects();
   if(id==='actWatch' && typeof awInitSelects==='function') awInitSelects();
+  if(id==='myPending' && typeof ensureMyPendingLoaded==='function') ensureMyPendingLoaded();
   if(id==='wantedReg' && typeof ensureWantedRegLoaded==='function') ensureWantedRegLoaded();
 }
 
@@ -4949,7 +5079,8 @@ function fallbackCopy(text){
 // ============================================================
 // एडमिन लॉगिन — "जिला योग" व "सेटिंग्स" पेज सुरक्षित करें
 // ============================================================
-const ADMIN_PASSWORD = 'DK-MANOJ-315';
+const ADMIN_PASSWORD_DEFAULT = 'DK-MANOJ-315';
+function getAdminPassword(){ try{ return localStorage.getItem('dkAdminPasswordOverride') || ADMIN_PASSWORD_DEFAULT; }catch(e){ return ADMIN_PASSWORD_DEFAULT; } }
 let adminLoggedIn = false;
 let adminTargetPage = null;
 
@@ -4965,7 +5096,7 @@ function adminGo(pg){
 
 function checkAdminLogin(){
   const pw = document.getElementById('admin-pw-input').value;
-  if(pw === ADMIN_PASSWORD){
+  if(pw === getAdminPassword()){
     adminLoggedIn = true;
     const target = adminTargetPage;
     closeAdminLogin();
@@ -8003,10 +8134,10 @@ initSelects();
 //  जाएगा और पोर्टल स्वतः पहले से मौजूद snapshot डेटा दिखाता रहेगा — ऑफलाइन भी काम करता है)
 // ============================================================
 const SHEET_IDS = {
-  gen: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng',
-  fdc: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng',
-  sas: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng',
-  wanted: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng'
+  gen: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_klbEHvkBMjng',
+  fdc: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_klbEHvkBMjng',
+  sas: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_klbEHvkBMjng',
+  wanted: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_klbEHvkBMjng'
 };
 // चारों एक ही Google Sheet में अलग-अलग टैब (tabs) पर हैं — टैब का नाम मायने रखता है
 const SHEET_TABS = { gen:'Generic', fdc:'FDC', sas:'SAS', wanted:'Wanted', trend:'TrendHistory' };
@@ -8256,6 +8387,62 @@ async function loadLiveData(){
   }
 }
 // पहली लोड पर स्वतः लाइव सिंक का प्रयास (असफल होने पर embedded snapshot ही दिखता रहेगा)
+// ============================================================
+// डार्क मोड
+// ============================================================
+const DARK_MODE_KEY = 'dkPortalDarkMode';
+function applyDarkModePreference(){
+  const pref = localStorage.getItem(DARK_MODE_KEY);
+  const isDark = pref === '1';
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  const btn = document.getElementById('darkModeToggleBtn');
+  if(btn) btn.textContent = isDark ? '☀️ लाइट मोड' : '🌙 डार्क मोड';
+}
+function toggleDarkMode(){
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  try{ localStorage.setItem(DARK_MODE_KEY, isDark ? '0' : '1'); }catch(e){}
+  applyDarkModePreference();
+}
+try{ applyDarkModePreference(); }catch(e){}
+
+// ============================================================
+// PWA इंस्टॉल — असली "होम स्क्रीन पर इंस्टॉल करें" प्रॉम्प्ट
+// (यह केवल तभी दिखेगा जब ब्राउज़र वाकई इंस्टॉल के योग्य समझे — यानी पोर्टल
+// किसी वेबसाइट/HTTPS लिंक से खुला हो, सीधे फाइल खोलने पर यह बटन नहीं आएगा)
+// ============================================================
+let deferredPwaPrompt = null;
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredPwaPrompt = e;
+  const btn = document.getElementById('pwaInstallBtn');
+  if(btn) btn.style.display = '';
+});
+function triggerPwaInstall(){
+  if(!deferredPwaPrompt){ toast('अभी इंस्टॉल उपलब्ध नहीं — यह सुविधा केवल वेबसाइट लिंक से खोलने पर काम करती है'); return; }
+  deferredPwaPrompt.prompt();
+  deferredPwaPrompt.userChoice.finally(()=>{
+    deferredPwaPrompt = null;
+    const btn = document.getElementById('pwaInstallBtn');
+    if(btn) btn.style.display = 'none';
+  });
+}
+window.addEventListener('appinstalled', ()=>{
+  const btn = document.getElementById('pwaInstallBtn');
+  if(btn) btn.style.display = 'none';
+  toast('✅ पोर्टल होम स्क्रीन पर इंस्टॉल हो गया');
+});
+
+// ============================================================
+// तुरंत सर्च शॉर्टकट — कहीं से भी Ctrl+K (या Cmd+K) दबाकर यूनिवर्सल सर्च खुले
+// ============================================================
+document.addEventListener('keydown', (e)=>{
+  if((e.ctrlKey || e.metaKey) && (e.key==='k' || e.key==='K')){
+    e.preventDefault();
+    go('univsearch');
+    setTimeout(()=>{ const inp=document.getElementById('univSearchInput'); if(inp){ inp.focus(); inp.select(); } }, 60);
+  }
+});
+
 if(typeof renderHomeDeadlineAlert==='function'){ try{ renderHomeDeadlineAlert(); }catch(e){} }
 setTimeout(()=>{ loadLiveData().catch(()=>{}); }, 300);
 // इसके बाद हर 60 सेकंड में अपने आप बैकग्राउंड में डेटा ताज़ा होता रहेगा — ताकि
@@ -9568,6 +9755,77 @@ function renderActWatch(){
   }
 
   box.innerHTML = h + alertHtml;
+}
+
+// ============================================================
+// मेरी पेंडिंग फाइलें — अनुसंधान अधिकारी (IO) या थाना अधिकारी अपना
+// नाम/थाना चुनकर सिर्फ़ अपनी पेंडिंग फाइलें देख/डाउनलोड कर सकते हैं
+// (Generic(13) स्रोत — क्योंकि सिर्फ़ इसी में IO नाम का कॉलम होता है)
+// ============================================================
+let mpMultiSel = {io:null, ps:null};
+let mpIOSet = new Set(), mpPsSet = new Set();
+let mpLastResults = [];
+
+function mpAllPendingRows(){
+  // 60 व 90 दोनों बकेट मिलाकर सभी पेंडिंग रिकॉर्ड
+  return buildRowsGeneric(60,null).concat(buildRowsGeneric(90,null)).filter(r=>!r.disposed);
+}
+function ensureMyPendingLoaded(){
+  const rows = mpAllPendingRows();
+  const ioMap = {}; // normalizedKey -> display name
+  const psSet = new Set();
+  rows.forEach(r=>{
+    if(r.io && r.io.trim()){
+      const base = ioBaseKey(r.io);
+      if(base) ioMap[base.toLowerCase()] = base;
+    }
+    if(r.ps) psSet.add(r.ps);
+  });
+  const ioList = Object.values(ioMap).sort((a,b)=>a.localeCompare(b,'hi'));
+  const psList = Array.from(psSet).sort((a,b)=>String(a).localeCompare(String(b),'hi'));
+  mpMultiSel.io = buildMultiSelect('mpIOFilter', ioList, mpIOSet, 'अनुसंधान अधिकारी', null);
+  mpMultiSel.ps = buildMultiSelect('mpStationFilter', psList, mpPsSet, 'थाना', null);
+  if(!rows.length){ document.getElementById('mp-result').innerHTML = '<div class="note">Generic(13) डेटा में कोई पेंडिंग रिकॉर्ड नहीं मिला — पहले लाइव सिंक होने का इंतज़ार करें।</div>'; }
+}
+function runMyPendingSearch(){
+  const box = document.getElementById('mp-result');
+  if(mpIOSet.size===0 && mpPsSet.size===0){ box.innerHTML = '<div class="note">कृपया कम से कम अपना नाम (IO) या अपना थाना चुनें।</div>'; return; }
+  const rows = mpAllPendingRows().filter(r=>{
+    const ioOk = mpIOSet.size===0 || (r.io && mpIOSet.has(ioBaseKey(r.io)));
+    const psOk = mpPsSet.size===0 || mpPsSet.has(r.ps);
+    // दोनों चुने हों तो दोनों शर्तें एक साथ लागू होंगी (AND); सिर्फ़ एक चुना हो तो सिर्फ़ वही शर्त
+    if(mpIOSet.size>0 && mpPsSet.size>0) return ioOk && psOk;
+    return ioOk && psOk;
+  });
+  rows.sort((a,b)=>(b.rd||0)-(a.rd||0)); // सबसे पुराना पेंडिंग सबसे ऊपर
+  mpLastResults = rows;
+  const over60 = rows.filter(r=>r.rd!=null && r.rd>60).length;
+  const over90 = rows.filter(r=>r.rd!=null && r.rd>90).length;
+  let h = `<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
+    <div class="chip" style="cursor:default;">कुल पेंडिंग: <b>${rows.length}</b></div>
+    <div class="chip" style="cursor:default;color:#B45309">60+ दिन: <b>${over60}</b></div>
+    <div class="chip" style="cursor:default;color:#B71C1C">90+ दिन: <b>${over90}</b></div>
+  </div>`;
+  if(!rows.length){
+    h += '<div class="note">चयनित IO/थाना हेतु कोई पेंडिंग फाइल नहीं मिली — बधाई हो! 🎉</div>';
+  } else {
+    h += `<div style="overflow-x:auto;"><table class="data-tbl" style="font-size:12.5px;"><thead><tr><th>थाना</th><th>FIR No/Date</th><th>अनुसंधान अधिकारी</th><th>धारा</th><th>पेंडिंग दिन</th></tr></thead><tbody>`;
+    rows.forEach(r=>{
+      const flag = r.rd!=null && r.rd>90 ? 'background:#FFEBEE;color:#B71C1C;font-weight:700;' : (r.rd!=null && r.rd>60 ? 'background:#FFF3E0;color:#B45309;font-weight:700;' : '');
+      h += `<tr><td>${escHtml(r.ps)}</td><td>${escHtml(r.fir)}</td><td>${escHtml(r.io||'-')}</td><td>${escHtml(r.section||'-')}</td><td style="${flag}text-align:center;">${r.rd!=null?r.rd:'-'}</td></tr>`;
+    });
+    h += `</tbody></table></div>`;
+  }
+  box.innerHTML = h;
+}
+function downloadMyPendingList(){
+  if(!mpLastResults.length){ toast('पहले "देखें" दबाकर सूची तैयार करें'); return; }
+  const header = ['थाना','FIR No/Date','अनुसंधान अधिकारी','धारा','पेंडिंग दिन'];
+  const lines = [header.map(csvEsc).join(',')];
+  mpLastResults.forEach(r=>{
+    lines.push([r.ps, r.fir, r.io||'-', r.section||'-', r.rd!=null?r.rd:'-'].map(csvEsc).join(','));
+  });
+  dlBlob(lines.join('\r\n'), 'text/csv;charset=utf-8', 'meri-pending-failein.csv');
 }
 
 let monLastCtx=null;

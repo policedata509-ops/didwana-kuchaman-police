@@ -633,7 +633,9 @@ nav button.on:hover{background:var(--gold)}
 .banner p{font-size:12.5px;color:#94A3B8;margin-top:6px;position:relative;z-index:1}
 
 .wrap{max-width:1080px;margin:0 auto;padding:0 16px 60px;width:100%}
-.intro{background:var(--card);border:1px solid var(--line);border-radius:var(--r-xl);padding:20px 22px;margin:-48px 0 26px;position:relative;z-index:5;font-size:13.5px;color:var(--soft);line-height:1.7;box-shadow:var(--sh-lg)}
+.intro{background:var(--card);border:1px solid var(--line);border-radius:var(--r-xl);padding:20px 22px;margin:0 0 26px;position:relative;z-index:5;font-size:13.5px;color:var(--soft);line-height:1.7;box-shadow:var(--sh-lg)}
+#homeDeadlineAlert:empty + .intro{margin-top:-48px}
+#homeDeadlineAlert:not(:empty){margin-top:-48px;position:relative;z-index:5}
 .intro b{color:var(--ink)}
 .intro-step{display:flex;gap:10px;margin-top:10px;align-items:flex-start;font-size:13px}
 .step-num{background:var(--gold-tint);color:var(--gold2);font-weight:700;width:23px;height:23px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:12px}
@@ -1025,7 +1027,9 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
   .hero{padding:36px 14px 72px;border-radius:0 0 18px 18px}
   .banner{padding:24px 14px 48px;border-radius:0 0 16px 16px}
   .wrap{padding:0 12px 52px}
-  .intro{margin-top:-40px;padding:16px 17px}
+  .intro{padding:16px 17px}
+  #homeDeadlineAlert:empty + .intro{margin-top:-40px}
+  #homeDeadlineAlert:not(:empty){margin-top:-40px}
   .summary{grid-template-columns:repeat(2,1fr);gap:9px}
   .sumcard{padding:13px 8px}
   .sumcard .num{font-size:19px}
@@ -1313,18 +1317,6 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
           <button class="btn-ghost" onclick="clearRange()">रीसेट</button>
         </div>
       </div>
-    </div>
-
-    <div class="pcard" style="--ca:#00695C;margin-top:14px">
-      <div class="pcard-head"><div class="pcard-icon">📈</div><span class="pcard-badge">ट्रेंड</span></div>
-      <div class="pcard-title">महीना-दर-महीना ट्रेंड (60/90 दिवस निस्तारण व पेंडेंसी)</div>
-      <div class="pcard-desc">हर बार "स्नैपशॉट सेव करें" दबाने पर आज की स्थिति (पेंडिंग/निस्तारित/अनुपालना%) एक बिंदु के रूप में सुरक्षित हो जाती है — महीने में एक बार दबाना काफी है, इससे समय के साथ रुझान (ट्रेंड) दिखता जाएगा।</div>
-      <div class="pcard-actions">
-        <button class="btn-fill sm" style="background:linear-gradient(135deg,#00695C,#00332C)" onclick="saveTrendSnapshot()">📸 आज का स्नैपशॉट सेव करें</button>
-        <button class="btn-fill sm" style="background:linear-gradient(135deg,#37474F,#1B262C)" onclick="loadTrendChart()">🔄 चार्ट रीफ्रेश करें</button>
-      </div>
-      <p id="trendSnapshotStatus" style="font-size:12.5px;margin-top:8px;color:var(--soft)"></p>
-      <div style="margin-top:10px;height:280px;"><canvas id="trendChartCanvas"></canvas></div>
     </div>
 
     <div class="pcard" style="--ca:#128C7E;margin-top:14px">
@@ -1792,8 +1784,8 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
         <div>
           <label>Information Source</label>
           <select id="pendSource" onchange="renderPendencyPage()">
-            <option value="generic" selected>Generic Data (सटीक)</option>
-            <option value="fdc">Current Status</option>
+            <option value="generic">Generic Data (सटीक)</option>
+            <option value="fdc" selected>Current Status (FCS File)</option>
             <option value="sas">SAS Export</option>
             <option value="combined">Combined</option>
             <option value="automerge">Auto Merge</option>
@@ -2995,11 +2987,6 @@ function saveSyncSettings(){
   // URL और Secret hardcoded हैं — थानाकर्मी को कुछ करने की ज़रूरत नहीं
   toast('✅ सर्वर पहले से कनेक्ट है');
 }
-// ============================================================
-// ट्रेंड चार्ट — महीना-दर-महीना 60/90 दिवस निस्तारण व पेंडेंसी
-// हर "स्नैपशॉट" एक पंक्ति है: [तिथि, स्रोत, 60-कुल, 60-निस्तारित, 60-पेंडिंग,
-// 60-अनुपालना%, 90-कुल, 90-निस्तारित, 90-पेंडिंग, 90-अनुपालना%]
-// ============================================================
 function shareDashboardWhatsapp(){
   try{
     const source = (GEN && GEN.length) ? 'generic' : 'automerge';
@@ -3019,66 +3006,6 @@ function shareDashboardWhatsapp(){
     const url = 'https://wa.me/?text=' + encodeURIComponent(msg);
     window.open(url, '_blank');
   }catch(e){ toast('सारांश तैयार नहीं हो पाया — पहले डेटा लोड होने का इंतज़ार करें'); }
-}
-async function saveTrendSnapshot(){
-  const statusEl = document.getElementById('trendSnapshotStatus');
-  statusEl.textContent = '🔄 आज का डेटा गणना कर रहे हैं...';
-  try{
-    const source = (GEN && GEN.length) ? 'generic' : 'automerge';
-    function summarize(limit){
-      const rows = buildRowsForSource(source, limit, null);
-      const total = rows.length;
-      const disposed = rows.filter(r=>r.disposed).length;
-      const pending = total - disposed;
-      const compPct = total ? (disposed/total*100) : 0;
-      return {total, disposed, pending, compPct};
-    }
-    const s60 = summarize(60), s90 = summarize(90);
-    const today = new Date().toISOString().slice(0,10);
-    const header = ['Date','Source','T60_Total','T60_Disposed','T60_Pending','T60_CompPct','T90_Total','T90_Disposed','T90_Pending','T90_CompPct'];
-    const row = [today, source, s60.total, s60.disposed, s60.pending, s60.compPct.toFixed(1), s90.total, s90.disposed, s90.pending, s90.compPct.toFixed(1)];
-    statusEl.textContent = '🔄 Google Sheet में सेव हो रहा है...';
-    const res = await pushSheetUpdate('trend', [header, row], 'append');
-    if(res.ok){ statusEl.innerHTML = '🟢 आज ('+today+') का स्नैपशॉट सेव हो गया।'; loadTrendChart(); }
-    else if(res.notConfigured){ statusEl.innerHTML = '🟡 Sheet-write अभी सेट नहीं है — सेटिंग्स में URL जोड़ें।'; }
-    else { statusEl.innerHTML = '🔴 सेव नहीं हो पाया: '+(res.error||'अज्ञात त्रुटि'); }
-  }catch(e){ statusEl.innerHTML = '🔴 त्रुटि: '+e.message; }
-}
-let trendChartInstance = null;
-async function loadTrendChart(){
-  const statusEl = document.getElementById('trendSnapshotStatus');
-  const canvas = document.getElementById('trendChartCanvas');
-  if(!canvas) return;
-  try{
-    const aoa = await fetchSheetAOA(SHEET_IDS.trend, SHEET_TABS.trend);
-    if(!aoa || aoa.length<2){ if(statusEl) statusEl.textContent = 'अभी कोई स्नैपशॉट सेव नहीं हुआ — ऊपर बटन दबाकर पहला स्नैपशॉट बनाएं।'; return; }
-    const rows = aoa.slice(1).filter(r=>r && r[0]);
-    // एक ही तारीख के कई स्नैपशॉट हों तो नवीनतम रखें
-    const byDate = {};
-    rows.forEach(r=>{ byDate[r[0]] = r; });
-    const sorted = Object.values(byDate).sort((a,b)=> String(a[0]).localeCompare(String(b[0])));
-    const labels = sorted.map(r=>r[0]);
-    const pending60 = sorted.map(r=>Number(r[4])||0);
-    const pending90 = sorted.map(r=>Number(r[8])||0);
-    const comp60 = sorted.map(r=>Number(r[5])||0);
-    const comp90 = sorted.map(r=>Number(r[9])||0);
-    if(trendChartInstance) trendChartInstance.destroy();
-    trendChartInstance = new Chart(canvas.getContext('2d'), {
-      type:'line',
-      data:{ labels, datasets:[
-        {label:'60-दिन पेंडिंग', data:pending60, borderColor:'#E5484D', backgroundColor:'rgba(229,72,77,0.1)', tension:0.25},
-        {label:'90-दिन पेंडिंग', data:pending90, borderColor:'#F59E0B', backgroundColor:'rgba(245,158,11,0.1)', tension:0.25},
-        {label:'60-दिन अनुपालना%', data:comp60, borderColor:'#2E7D32', borderDash:[5,4], yAxisID:'y1', tension:0.25},
-        {label:'90-दिन अनुपालना%', data:comp90, borderColor:'#1565C0', borderDash:[5,4], yAxisID:'y1', tension:0.25},
-      ]},
-      options:{ responsive:true, maintainAspectRatio:false,
-        scales:{ y:{ title:{display:true,text:'पेंडिंग प्रकरण'} }, y1:{ position:'right', min:0, max:100, title:{display:true,text:'अनुपालना %'}, grid:{drawOnChartArea:false} } }
-      }
-    });
-    if(statusEl) statusEl.textContent = `${sorted.length} स्नैपशॉट लोड हुए (${labels[0]} से ${labels[labels.length-1]})`;
-  }catch(e){
-    if(statusEl) statusEl.textContent = 'चार्ट लोड नहीं हो पाया — शायद अभी तक कोई स्नैपशॉट सेव नहीं हुआ है।';
-  }
 }
 // ============================================================
 // पासवर्ड/Secret बदलना — localStorage में सेव होता है, इसी ब्राउज़र/डिवाइस
@@ -3542,11 +3469,10 @@ function go(id){
   if(btn) btn.classList.add('on');
   window.scrollTo({top:0});
   if(id==='dashboard' && typeof renderAll==='function') renderAll();
-  if(id==='dashboard' && typeof loadTrendChart==='function') loadTrendChart();
   if(id==='mob' && typeof mobInit==='function') mobInit();
   if(id==='settings' && typeof renderCustomPagesSettings==='function') renderCustomPagesSettings();
   if(id==='monitor' && typeof monInitSelects==='function') monInitSelects();
-  if(id==='actWatch' && typeof awInitSelects==='function') awInitSelects();
+  if(id==='actWatch' && typeof awInitSelects==='function'){ awInitSelects(); if(typeof renderActWatch==='function') renderActWatch(); }
   if(id==='myPending' && typeof ensureMyPendingLoaded==='function') ensureMyPendingLoaded();
   if(id==='wantedReg' && typeof ensureWantedRegLoaded==='function') ensureWantedRegLoaded();
 }
@@ -6639,7 +6565,7 @@ function ioRankHTML(limit){
 function renderHomeDeadlineAlert(){
   const el = document.getElementById('homeDeadlineAlert');
   if(!el) return;
-  const WARN_DAYS = 7;
+  const WARN_DAYS = 15;
   const source = (GEN && GEN.length) ? 'generic' : 'automerge';
   let n60=0, n90=0;
   try{
@@ -6647,6 +6573,7 @@ function renderHomeDeadlineAlert(){
     n90 = buildRowsForSource(source, 90, null).filter(r=>!r.disposed && r.rd!=null && r.rd<=90 && r.rd>=90-WARN_DAYS).length;
   }catch(e){ el.innerHTML=''; return; }
   if(!n60 && !n90){ el.innerHTML=''; return; }
+  const limsPresent = [n60?60:null, n90?90:null].filter(Boolean);
   el.innerHTML = `<div style="background:#FFF3E0;border:1.5px solid #F59E0B;border-radius:12px;padding:12px 14px;margin-bottom:16px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
     <div style="font-size:20px;">⏰</div>
     <div style="flex:1;min-width:220px;">
@@ -6654,15 +6581,23 @@ function renderHomeDeadlineAlert(){
       ${n60?`<span style="cursor:pointer;color:#B45309;font-weight:700;text-decoration:underline;" onclick="go('disp60')">${n60} प्रकरण अगले ${WARN_DAYS} दिनों में 60-दिवस सीमा पूरी करेंगे</span>`:''}
       ${n60&&n90?' · ':''}
       ${n90?`<span style="cursor:pointer;color:#B45309;font-weight:700;text-decoration:underline;" onclick="go('disp90')">${n90} प्रकरण अगले ${WARN_DAYS} दिनों में 90-दिवस सीमा पूरी करेंगे</span>`:''}
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-fill sm" style="background:#B45309;" onclick="downloadNearingDeadlineList(${JSON.stringify(limsPresent)})">📥 सूची डाउनलोड</button>
+        <button class="btn-fill sm" style="background:#7C2D12;" onclick="generateDeadlineLetterDoc(${JSON.stringify(limsPresent)})">📄 पत्र (Word) बनाएं</button>
+      </div>
     </div>
   </div>`;
 }
 function deadlineAlertHTML(rows, limit){
-  const WARN_DAYS = 7;
+  const WARN_DAYS = 15;
   const nearing = rows.filter(r=>!r.disposed && r.rd!=null && r.rd<=limit && r.rd>=limit-WARN_DAYS);
   if(!nearing.length) return '';
   return `<div style="background:#FFF3E0;border:1.5px solid #F59E0B;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
     <b>⏰ ध्यान दें:</b> <b style="color:#B45309">${nearing.length}</b> प्रकरण अगले ${WARN_DAYS} दिनों में ${limit}-दिवस सीमा पूरी करने वाले हैं — प्राथमिकता से निस्तारण करें।
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn-fill sm" style="background:#B45309;" onclick="downloadNearingDeadlineList([${limit}])">📥 सूची डाउनलोड</button>
+      <button class="btn-fill sm" style="background:#7C2D12;" onclick="generateDeadlineLetterDoc([${limit}])">📄 पत्र (Word) बनाएं</button>
+    </div>
   </div>`;
 }
 function renderDisposalPage(limit){
@@ -6739,6 +6674,106 @@ function downloadDisposalPendingList(limit){
     {name:`${nearMin}-${limit} दिन`, aoa: [header, ...toRows(nearDue)], colWidths:[7,20,16,16,26,18], filter:true},
     {name:`${limit} दिन से कम (समस्त)`, aoa: [header, ...toRows(underLimit)], colWidths:[7,20,16,16,26,18], filter:true}
   ]);
+}
+
+// ---------- 60/90 दिवस डेडलाइन अलर्ट ("आगामी 15 दिनों में सीमा पूर्ण") हेतु साझा हेल्पर ----------
+const DEADLINE_WARN_DAYS = 15;
+function getNearingDeadlineRows(limit){
+  const source = (GEN && GEN.length) ? 'generic' : 'automerge';
+  return buildRowsForSource(source, limit, null)
+    .filter(r=>!r.disposed && r.rd!=null && r.rd<=limit && r.rd>=limit-DEADLINE_WARN_DAYS)
+    .map(r=>({...r, limit}));
+}
+function getNearingDeadlineRowsGrouped(limits){
+  const out=[];
+  (limits||[60,90]).forEach(limit=> out.push(...getNearingDeadlineRows(limit)));
+  return out;
+}
+
+// ---------- निकट-सीमा (आगामी 15 दिनों में 60/90-दिवस सीमा) प्रकरणों की सूची डाउनलोड ----------
+function downloadNearingDeadlineList(limits){
+  limits = limits && limits.length ? limits : [60,90];
+  const summaryAOA = [['सीमा (दिन)','निकट-सीमा प्रकरण (आगामी '+DEADLINE_WARN_DAYS+' दिनों में)']];
+  const sheets = [];
+  const header = ['क्र.सं','सर्किल','थाना','FIR नंबर','पंजीकरण दिनांक','धारा / Act','सीमा (दिन)','शेष दिन'];
+  limits.forEach(limit=>{
+    const rows = getNearingDeadlineRows(limit).sort((a,b)=>
+      dispCircleOf(a.ps).localeCompare(dispCircleOf(b.ps)) || a.ps.localeCompare(b.ps) || (b.rd-a.rd));
+    summaryAOA.push([`${limit} दिन`, rows.length]);
+    const aoa = [header, ...rows.map((r,i)=>[i+1, dispCircleOf(r.ps), ENG2HI_PS[r.ps]||r.ps, r.fir||'-', r.reg||'-', r.section||'-', r.limit, r.limit-r.rd])];
+    sheets.push({name:`${limit} दिन (निकट-सीमा)`, aoa, colWidths:[6,14,18,16,16,26,10,10], filter:true});
+  });
+  sheets.unshift({name:'सारांश', aoa: summaryAOA, colWidths:[16,34]});
+  exportRowsToXLSX('nikat-seema-prakaran-suchi.xlsx', sheets);
+}
+
+// ---------- निकट-सीमा प्रकरणों हेतु SP कार्यालय की ओर से पत्र (Word) — थानाधिकारी को, वृत्ताधिकारी को प्रतिलिपि ----------
+function generateDeadlineLetterDoc(limits){
+  limits = limits && limits.length ? limits : [60,90];
+  const rows = getNearingDeadlineRowsGrouped(limits);
+  if(!rows.length){ toast('⚠️ कोई निकट-सीमा प्रकरण नहीं मिला'); return; }
+
+  const byPS = {};
+  rows.forEach(r=>{ (byPS[r.ps] = byPS[r.ps] || []).push(r); });
+  const stations = Object.keys(byPS).sort((a,b)=> dispCircleOf(a).localeCompare(dispCircleOf(b)) || a.localeCompare(b));
+  const circlesInvolved = [...new Set(stations.map(dispCircleOf))].filter(c=>c!=='अन्य / साइबर');
+  const stationNamesHi = stations.map(ps=>ENG2HI_PS[ps]||ps).join(', ');
+
+  const today = new Date();
+  const dateStr = String(today.getDate()).padStart(2,'0')+'.'+String(today.getMonth()+1).padStart(2,'0')+'.'+today.getFullYear();
+
+  let bodyRows = '', sn = 1;
+  stations.forEach(ps=>{
+    byPS[ps].sort((a,b)=>b.rd-a.rd).forEach(r=>{
+      bodyRows += `<tr><td>${sn++}</td><td>${ENG2HI_PS[ps]||ps}</td><td>${r.fir||'-'}</td><td>${r.reg||'-'}</td><td>${r.section||'-'}</td><td>${r.limit}</td><td>${r.limit-r.rd}</td></tr>`;
+    });
+  });
+
+  const html = `<!DOCTYPE html>
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head><meta charset='utf-8'>
+<style>
+  body{font-family:'Mangal','Nirmala UI',sans-serif; font-size:14pt; line-height:1.5; color:#000;}
+  table{border-collapse:collapse; width:100%; margin-top:14px; font-size:11pt;}
+  td,th{border:1px solid #000; padding:4px 6px;}
+  th{background:#eee; font-weight:bold;}
+  h2{text-align:center; margin-bottom:2px;}
+  .sub{text-align:center; margin-top:0;}
+  .refline{display:flex; justify-content:space-between; margin-top:16px;}
+</style>
+</head>
+<body>
+  <h2>कार्यालय पुलिस अधीक्षक, जिला डीडवाना-कुचामन (राजस्थान)</h2>
+  <p class="sub">सांख्यिकी शाखा</p>
+  <div class="refline"><span>क्रमांक : सां.शा./डीके/2026/______</span><span>दिनांक : ${dateStr}</span></div>
+  <p>प्रति,<br>समस्त संबंधित थानाधिकारी महोदय,<br>${stationNamesHi} थाना, जिला डीडवाना-कुचामन।</p>
+  <p><b>विषय : आगामी ${DEADLINE_WARN_DAYS} दिवसों में 60/90-दिवस सीमा पूर्ण होने वाले प्रकरणों के प्राथमिकता से निस्तारण विषयक।</b></p>
+  <p>महोदय,</p>
+  <p>उपर्युक्त विषयान्तर्गत लेख है कि सांख्यिकी शाखा द्वारा की गई समीक्षा में यह पाया गया है कि आपके थाने से संबंधित निम्नांकित प्रकरण आगामी ${DEADLINE_WARN_DAYS} दिवसों के भीतर 60/90-दिवस की निर्धारित सीमा पूर्ण करने जा रहे हैं। नियमानुसार उक्त सीमा के भीतर अनुसंधान पूर्ण कर चालान/अंतिम प्रतिवेदन (एफ.आर.) प्रस्तुत किया जाना अपेक्षित है।</p>
+  <p>अतः आपसे अपेक्षा की जाती है कि संलग्न सूची में अंकित समस्त प्रकरणों का अनुसंधान सर्वोच्च प्राथमिकता पर पूर्ण कर निर्धारित समयावधि में चालान/एफ.आर. न्यायालय में प्रस्तुत करावें एवं पालना रिपोर्ट सांख्यिकी शाखा को शीघ्र उपलब्ध करावें।</p>
+  <p><b>संलग्नक : निकट-सीमा प्रकरणों की सूची (कुल ${rows.length} प्रकरण)</b></p>
+  <table>
+    <thead><tr><th>क्र.सं</th><th>थाना</th><th>FIR नंबर</th><th>पंजीकरण दिनांक</th><th>धारा / Act</th><th>सीमा (दिन)</th><th>शेष दिन</th></tr></thead>
+    <tbody>${bodyRows}</tbody>
+  </table>
+  <p style="margin-top:26px;">भवदीय,</p>
+  <p style="margin-top:40px;"><b>(ऋचा तोमर)</b><br>पुलिस अधीक्षक,<br>डीडवाना-कुचामन।</p>
+  <p style="margin-top:20px;">प्रतिलिपि निम्न को सूचनार्थ एवं संबंधित थानाधिकारी से पालना करवाने हेतु प्रेषित —</p>
+  <ol>
+    ${circlesInvolved.map(c=>`<li>वृत्ताधिकारी, ${c} वृत्त, डीडवाना-कुचामन।</li>`).join('')}
+  </ol>
+</body>
+</html>`;
+
+  const blob = new Blob(['\ufeff', html], {type:'application/msword'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `nikat-seema-patra-${dateStr.replace(/\./g,'')}.doc`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href), 60000);
+  toast('✅ पत्र (Word) डाउनलोड हो रहा है');
 }
 
 // ============================================================
@@ -8140,7 +8175,7 @@ const SHEET_IDS = {
   wanted: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng'
 };
 // चारों एक ही Google Sheet में अलग-अलग टैब (tabs) पर हैं — टैब का नाम मायने रखता है
-const SHEET_TABS = { gen:'Generic', fdc:'FDC', sas:'SAS', wanted:'Wanted', trend:'TrendHistory' };
+const SHEET_TABS = { gen:'Generic', fdc:'FDC', sas:'SAS', wanted:'Wanted' };
 function gvizUrl(id, tabName){ return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}&_cb=${Date.now()}`; }
 function exportUrl(id, tabName){ return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}&_cb2=${Date.now()}_${Math.random()}`; }
 
@@ -8382,6 +8417,7 @@ async function loadLiveData(){
     if(id==='disp60') renderDisposalPage(60);
     if(id==='disp90') renderDisposalPage(90);
     if(id==='pendency') renderPendencyPage();
+    if(id==='actWatch' && typeof renderActWatch==='function') renderActWatch();
     if(id==='univsearch'){ SEARCH_IDX = buildSearchIndex(); populateUnivFilters(); if(typeof runUniversalSearch==='function') runUniversalSearch(); }
     if(id==='wantedReg' && typeof wrRefreshFiltersAndFilters==='function'){ wrRefreshFiltersAndFilters(); runWantedSearch(); document.getElementById('wrTotalCount').textContent = WANTED_DATA.length.toLocaleString('en-IN'); }
   }
@@ -8444,13 +8480,10 @@ document.addEventListener('keydown', (e)=>{
 });
 
 if(typeof renderHomeDeadlineAlert==='function'){ try{ renderHomeDeadlineAlert(); }catch(e){} }
+// डेटा सिर्फ़ पोर्टल खुलने पर (एक बार) या यूज़र द्वारा "पुनः सिंक करें" दबाने पर लोड होगा —
+// पहले हर 60 सेकंड में अपने-आप बैकग्राउंड सिंक होता था, जिससे धीमे/सीमित इंटरनेट पर पोर्टल
+// बार-बार धीमा/हैंग महसूस होता था। अब बैकग्राउंड ऑटो-सिंक हटा दिया गया है।
 setTimeout(()=>{ loadLiveData().catch(()=>{}); }, 300);
-// इसके बाद हर 60 सेकंड में अपने आप बैकग्राउंड में डेटा ताज़ा होता रहेगा — ताकि
-// सर्च करने वाले को कभी पुराना डेटा न दिखे और मैनुअल "पुनः सिंक करें" न दबाना पड़े
-setInterval(()=>{
-  if(Date.now() - LAST_MANUAL_SHEET_PUSH_AT < SHEET_PUSH_GRACE_MS) return; // हाल ही में मैनुअल अपलोड हुआ — अभी न छेड़ें
-  loadLiveData().catch(()=>{});
-}, 60000);
 
 // ============================================================
 // प्रिंट के दौरान चार्ट स्केलिंग बग फिक्स — प्रिंट लेआउट (चौड़ाई) बदलने पर
@@ -8665,9 +8698,9 @@ async function exportContainerToPDF(containerId, title, filename){
 }
 
 // ============================================================
-// पेंडेंसी व 60/90-दिन निस्तारण पेज हेतु समर्पित एक-पेज पोर्ट्रेट PDF एक्सपोर्ट
-// (पुराना landscape बहु-पृष्ठ एक्सपोर्ट नहीं — पूरी सारणी एक ही पोर्ट्रेट पेज में समाहित,
-//  इनसाइट्स-कार्ड/चार्ट/लीजेंड छोड़कर केवल असल सारणियाँ शामिल की जाती हैं)
+// पेंडेंसी व 60/90-दिन निस्तारण पेज हेतु समर्पित पोर्ट्रेट PDF एक्सपोर्ट
+// (इनसाइट्स-कार्ड/चार्ट/लीजेंड छोड़कर केवल असल सारणियाँ शामिल की जाती हैं; सारणी पूरी चौड़ाई में
+//  बिना सिकोड़े/खींचे रेंडर होती है — ज़्यादा थाने/पंक्तियाँ होने पर सामग्री अगले पेज(ों) पर बँट जाती है)
 // ============================================================
 const PRINT_HEX_VARS = {
   navy:'#1E2A45', navy2:'#141D30', maroon:'#DC2626', maroon2:'#B91C1C',
@@ -8711,7 +8744,8 @@ async function exportOnePagePortraitPDF(containerId, title, filename){
   });
   const dtLine = 'जनरेट दिनांक: ' + new Date().toLocaleString('hi-IN');
 
-  // एक तालिका-समूह को PDF के एक पेज पर fit करता है (जरूरत पड़ने पर पहले doc.addPage() कॉल करें)
+  // एक तालिका-समूह को पेज की पूरी चौड़ाई में (बिना सिकोड़े/खींचे) रेंडर करता है — यदि सामग्री एक
+  // पेज से ऊँची हो तो आवश्यकतानुसार अतिरिक्त पेज अपने-आप जुड़ जाते हैं
   async function renderTablesToCurrentPage(tables, pageTitle, stackVertically){
     const wrap = document.createElement('div');
     wrap.style.cssText = 'position:fixed;left:-99999px;top:0;width:840px;background:#FFFFFF;padding:12px;font-family:Hind,Arial,sans-serif;color:#101828;';
@@ -8747,19 +8781,29 @@ async function exportOnePagePortraitPDF(containerId, title, filename){
       const canvas = await html2canvas(wrap, {scale:2, backgroundColor:'#ffffff'});
       const availW = pageW - marginX*2;
       const availH = pageH - marginY*2;
-      const ratio = canvas.height / canvas.width;
-      let imgW = availW, imgH = imgW*ratio;
-      if(imgH > availH){
-        // सामग्री पेज से ऊँची है — पूरा पेज भरने हेतु दोनों दिशा में आनुपातिक रूप से सिकोड़ें
-        imgH = availH; imgW = imgH/ratio;
-      } else {
-        // सामग्री पेज से छोटी है — नीचे खाली जगह न बचे इसलिए पूरी ऊँचाई तक फैलाएँ (हल्का वर्टिकल स्ट्रेच,
-        // टेक्स्ट टेबल के लिए यह सामान्य दिखता है और पूरा पेज उपयोग होता है)
-        imgH = availH;
+      // चौड़ाई के अनुसार स्केल तय करें — इसे ऊँचाई के हिसाब से कभी सिकोड़ें/खींचें नहीं,
+      // वरना ज़्यादा थाने/पंक्तियाँ होने पर टेक्स्ट बहुत छोटा या विकृत होकर पढ़ने लायक नहीं रहता।
+      // इसके बजाय सामग्री जितने भी पेज घेरे, उतने पेजों में बाँट दें (जरूरत पड़ने पर addPage)।
+      const scale = availW / canvas.width;
+      const imgW = availW;
+      const pageSliceHeightPx = Math.max(50, Math.floor(availH / scale));
+      let renderedPx = 0;
+      let firstSlice = true;
+      while(renderedPx < canvas.height){
+        const thisSlicePx = Math.min(pageSliceHeightPx, canvas.height - renderedPx);
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = thisSlicePx;
+        const sctx = sliceCanvas.getContext('2d');
+        sctx.fillStyle = '#ffffff';
+        sctx.fillRect(0,0,sliceCanvas.width, sliceCanvas.height);
+        sctx.drawImage(canvas, 0, renderedPx, canvas.width, thisSlicePx, 0, 0, canvas.width, thisSlicePx);
+        const sliceImgH = thisSlicePx * scale;
+        if(!firstSlice) doc.addPage();
+        doc.addImage(sliceCanvas.toDataURL('image/png',1.0), 'PNG', marginX, marginY, imgW, sliceImgH);
+        renderedPx += thisSlicePx;
+        firstSlice = false;
       }
-      const x = marginX + (availW-imgW)/2;
-      const y = marginY;
-      doc.addImage(canvas.toDataURL('image/png',1.0), 'PNG', x, y, imgW, imgH);
     } finally {
       document.body.removeChild(wrap);
     }
@@ -8795,6 +8839,7 @@ function refreshAfterDataChange(){
     if(id==='disp60') renderDisposalPage(60);
     if(id==='disp90') renderDisposalPage(90);
     if(id==='pendency') renderPendencyPage();
+    if(id==='actWatch' && typeof renderActWatch==='function') renderActWatch();
     if(id==='univsearch'){ SEARCH_IDX = buildSearchIndex(); populateUnivFilters(); if(typeof runUniversalSearch==='function') runUniversalSearch(); }
   }
 }

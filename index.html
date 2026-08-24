@@ -6725,7 +6725,7 @@ function generateDeadlineLetterDoc(limits){
   let bodyRows = '', sn = 1;
   stations.forEach(ps=>{
     byPS[ps].sort((a,b)=>b.rd-a.rd).forEach(r=>{
-      bodyRows += `<tr><td>${sn++}</td><td>${ENG2HI_PS[ps]||ps}</td><td>${r.fir||'-'}</td><td>${r.reg||'-'}</td><td>${r.section||'-'}</td><td>${r.limit}</td><td>${r.limit-r.rd}</td></tr>`;
+      bodyRows += `<tr><td>${sn++}</td><td>${ENG2HI_PS[ps]||ps}</td><td>${r.fir||'-'}</td><td>${r.reg||'-'}</td><td>${actTypeShort(r.section)}</td><td>${r.limit}</td><td>${r.limit-r.rd}</td></tr>`;
     });
   });
 
@@ -6757,7 +6757,7 @@ function generateDeadlineLetterDoc(limits){
     <tbody>${bodyRows}</tbody>
   </table>
   <p style="margin-top:26px;">भवदीय,</p>
-  <p style="margin-top:40px;"><b>(ऋचा तोमर)</b><br>पुलिस अधीक्षक,<br>डीडवाना-कुचामन।</p>
+  <p style="margin-top:40px;"><b>&nbsp;</b><br>पुलिस अधीक्षक,<br>डीडवाना-कुचामन।</p>
   <p style="margin-top:20px;">प्रतिलिपि निम्न को सूचनार्थ एवं संबंधित थानाधिकारी से पालना करवाने हेतु प्रेषित —</p>
   <ol>
     ${circlesInvolved.map(c=>`<li>वृत्ताधिकारी, ${c} वृत्त, डीडवाना-कुचामन।</li>`).join('')}
@@ -6798,6 +6798,14 @@ function getActFlags(text){
   const ipc = /\bIPC\b/i.test(s);
   const sll = /\b(Act|Ordinance|Rules?|SCST|SC\/ST|POCSO|NDPS|Excise|Arms|Explosive|Electricity|Gambling|Motor Vehicle|MV Act|Information Technology|IT Act|Epidemic|Disaster Management|Noise|Dowry|Prohibition|PDPP|Muslim Women|Bovine|Cruelty)\b/i.test(s);
   return {ipc, bns, crpc, bnss, sll};
+}
+// पत्रों/सूचियों में एक्ट का सिर्फ "प्रकार" (जैसे BNS, IPC, SLL) दिखाने हेतु — पूरा विस्तृत टेक्स्ट नहीं
+const ACT_TYPE_SHORT = {ipc:'IPC', bns:'BNS', crpc:'CrPC', bnss:'BNSS', sll:'SLL'};
+function actTypeShort(text){
+  const f = getActFlags(text);
+  const order = ['bns','ipc','bnss','crpc','sll'];
+  const parts = order.filter(k=>f[k]).map(k=>ACT_TYPE_SHORT[k]);
+  return parts.length ? parts.join('/') : '-';
 }
 function yearMonthOf(dateStr){
   if(!dateStr) return {year:null, month:null};
@@ -8414,6 +8422,7 @@ async function loadLiveData(){
   const activePg = document.querySelector('.pg.on');
   if(activePg){
     const id = activePg.id;
+    if(id==='dashboard' && typeof renderAll==='function') renderAll();
     if(id==='disp60') renderDisposalPage(60);
     if(id==='disp90') renderDisposalPage(90);
     if(id==='pendency') renderPendencyPage();
@@ -8836,6 +8845,7 @@ function refreshAfterDataChange(){
   const activePg = document.querySelector('.pg.on');
   if(activePg){
     const id = activePg.id;
+    if(id==='dashboard' && typeof renderAll==='function') renderAll();
     if(id==='disp60') renderDisposalPage(60);
     if(id==='disp90') renderDisposalPage(90);
     if(id==='pendency') renderPendencyPage();
@@ -9740,6 +9750,23 @@ function monPopulateFormats(){
 // ============================================================
 const AW_CATS = ['Excise Act','Gambling Ordinance','Arms Act','NDPS Act'];
 const AW_CATS_HI = {'Excise Act':'आबकारी (शराब)','Gambling Ordinance':'जुआ (RPGO)','Arms Act':'आर्म्स एक्ट','NDPS Act':'एनडीपीएस एक्ट'};
+// SLL कॉलम में वास्तविक टेक्स्ट अक्सर एग्जैक्ट नाम से थोड़ा अलग होता है
+// (जैसे "Rajasthan Excise Act,1950", "NDPS Act,1985", "Public Gambling Act")
+// — इसलिए keyword-आधारित (case-insensitive, partial) मैचिंग का उपयोग करें
+const AW_CAT_KEYWORDS = {
+  'Excise Act': ['excise'],
+  'Gambling Ordinance': ['gambl'],
+  'Arms Act': ['arms act','arms,'],
+  'NDPS Act': ['ndps']
+};
+function awMatchCat(sll){
+  const s = String(sll||'').toLowerCase();
+  if(!s) return null;
+  for(const cat of AW_CATS){
+    if(AW_CAT_KEYWORDS[cat].some(kw=>s.includes(kw))) return cat;
+  }
+  return null;
+}
 
 function awInitSelects(){
   const ys=document.getElementById('aw-year'), ms=document.getElementById('aw-month');
@@ -9758,15 +9785,16 @@ function renderActWatch(){
   const counts = {}; // counts[ps][cat] = {cur, prev}
   const stations = new Set();
   RAW.forEach(r=>{
-    const ps = r[0], d = r[1], sll = r[4];
-    if(!ps || !d || AW_CATS.indexOf(sll)===-1) return;
+    const ps = r[0], d = r[1];
+    const cat = awMatchCat(r[4]);
+    if(!ps || !d || !cat) return;
     if(String(d).slice(5,7) !== mm) return;
     const y = String(d).slice(0,4);
     if(y!==curY && y!==prevY) return;
     stations.add(ps);
     counts[ps] = counts[ps] || {};
-    counts[ps][sll] = counts[ps][sll] || {cur:0, prev:0};
-    if(y===curY) counts[ps][sll].cur++; else counts[ps][sll].prev++;
+    counts[ps][cat] = counts[ps][cat] || {cur:0, prev:0};
+    if(y===curY) counts[ps][cat].cur++; else counts[ps][cat].prev++;
   });
   const stList = Array.from(stations).sort();
   if(!stList.length){ box.innerHTML = '<div class="note">चयनित माह/वर्ष हेतु इन श्रेणियों में कोई डेटा नहीं मिला।</div>'; return; }

@@ -2580,12 +2580,18 @@ function reply(obj) {
   </div>
   <div class="wrap">
     <div class="intro" style="border-top-color:#7B1E3A">
-      <b>निर्देश:</b> यह पेज SAS Export डेटा से प्रत्येक थाने के <b>आबकारी अधिनियम (शराब), जुआ अधिनियम (RPGO), आर्म्स एक्ट व NDPS एक्ट</b> के मामलों की गिनती, चयनित माह में <b>इस वर्ष बनाम गत वर्ष उसी माह</b> से तुलना करता है। जहाँ इस वर्ष की गिनती गत वर्ष से कम है, वहाँ 🔴 चिह्न व "अधिक कार्यवाही हेतु" दिखेगा।
+      <b>निर्देश:</b> यह पेज SAS Export डेटा से प्रत्येक थाने के <b>आबकारी अधिनियम (शराब), जुआ अधिनियम (RPGO), आर्म्स एक्ट व NDPS एक्ट</b> के मामलों की गिनती, <b>इस वर्ष बनाम गत वर्ष</b> से तुलना करता है। "संचयी" विकल्प चुनने पर जनवरी से चयनित माह तक की कुल गिनती की तुलना होगी, अन्यथा केवल चयनित माह की। जहाँ इस वर्ष की गिनती गत वर्ष से कम है, वहाँ 🔴 चिह्न व "अधिक कार्यवाही हेतु" दिखेगा।
     </div>
     <div class="ctx-bar">
       <div class="ctx-grid">
-        <div><label>माह *</label><select id="aw-month"></select></div>
+        <div><label>माह (चयनित माह तक) *</label><select id="aw-month"></select></div>
         <div><label>वर्ष (इस वर्ष) *</label><select id="aw-year"></select></div>
+      </div>
+      <div style="margin-top:10px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13.5px;cursor:pointer;">
+          <input type="checkbox" id="aw-cumulative" checked style="width:16px;height:16px;">
+          📊 संचयी — जनवरी से चयनित माह तक (अनचेक करने पर सिर्फ़ चयनित माह)
+        </label>
       </div>
       <div style="margin-top:12px">
         <button class="btn-fill" style="background:linear-gradient(135deg,#7B1E3A,#4A1224)" onclick="renderActWatch()">🔍 तुलना देखें</button>
@@ -9782,30 +9788,61 @@ function renderActWatch(){
   const box = document.getElementById('aw-result');
   const month = Number(document.getElementById('aw-month').value);
   const year = Number(document.getElementById('aw-year').value);
+  const cumEl = document.getElementById('aw-cumulative');
+  const cumulative = cumEl ? cumEl.checked : true;
   if(!month || !year){ box.innerHTML = '<div class="note">कृपया माह व वर्ष चुनें।</div>'; return; }
   if(!RAW || !RAW.length){ box.innerHTML = '<div class="note">SAS Export डेटा उपलब्ध नहीं — पहले लाइव सिंक होने या अपलोड होने का इंतज़ार करें।</div>'; return; }
-  const mm = String(month).padStart(2,'0');
   const curY = String(year), prevY = String(year-1);
   const counts = {}; // counts[ps][cat] = {cur, prev}
   const stations = new Set();
+  // डायग्नॉस्टिक्स — ताकि "डेटा अपडेट नहीं हो रहा" जैसी समस्या का कारण (सिंक/कॉलम-मैच) पहचाना जा सके
+  let rowsWithPsDate = 0, rowsInYearRange = 0, rowsInMonthRange = 0, rowsMatchedCat = 0;
+  const unmatchedSllSamples = [];
   RAW.forEach(r=>{
     const ps = r[0], d = r[1];
-    const cat = awMatchCat(r[4]);
-    if(!ps || !d || !cat) return;
-    if(String(d).slice(5,7) !== mm) return;
+    if(!ps || !d) return;
+    rowsWithPsDate++;
     const y = String(d).slice(0,4);
     if(y!==curY && y!==prevY) return;
+    rowsInYearRange++;
+    const rowMonth = Number(String(d).slice(5,7));
+    const inRange = cumulative ? (rowMonth>=1 && rowMonth<=month) : (rowMonth===month);
+    if(!inRange) return;
+    rowsInMonthRange++;
+    const cat = awMatchCat(r[4]);
+    if(!cat){
+      if(r[4] && unmatchedSllSamples.length<8 && !unmatchedSllSamples.includes(r[4])) unmatchedSllSamples.push(r[4]);
+      return;
+    }
+    rowsMatchedCat++;
     stations.add(ps);
     counts[ps] = counts[ps] || {};
     counts[ps][cat] = counts[ps][cat] || {cur:0, prev:0};
     if(y===curY) counts[ps][cat].cur++; else counts[ps][cat].prev++;
   });
   const stList = Array.from(stations).sort();
-  if(!stList.length){ box.innerHTML = '<div class="note">चयनित माह/वर्ष हेतु इन श्रेणियों में कोई डेटा नहीं मिला।</div>'; return; }
+  const periodLabel = cumulative ? `${MONTHS[1]}–${MONTHS[month]}` : MONTHS[month];
+  if(!stList.length){
+    let diag = `<div class="note">चयनित अवधि/वर्ष हेतु इन श्रेणियों (आबकारी/जुआ/आर्म्स/NDPS) में कोई डेटा नहीं मिला।</div>
+      <div style="margin-top:10px;font-size:12px;background:#FAFAFA;border:1px solid #ddd;border-radius:8px;padding:10px 12px;">
+        <b>🔍 डायग्नॉस्टिक:</b> कुल RAW रिकॉर्ड ${RAW.length.toLocaleString('en-IN')} | थाना+दिनांक वाले ${rowsWithPsDate.toLocaleString('en-IN')} | ${curY}/${prevY} वर्ष के ${rowsInYearRange.toLocaleString('en-IN')} | चयनित अवधि (${periodLabel}) के ${rowsInMonthRange.toLocaleString('en-IN')} | इनमें से 4 श्रेणियों में मैच हुए ${rowsMatchedCat.toLocaleString('en-IN')}<br>`;
+    if(rowsInMonthRange>0 && rowsMatchedCat===0){
+      diag += `⚠️ इस अवधि में रिकॉर्ड तो हैं, पर किसी का SLL फ़ील्ड "Excise/Gambling/Arms/NDPS" कीवर्ड से मेल नहीं खाया — यानी लाइव सिंक तो हो रहा है, पर SLL कॉलम का हैडर या मान अपेक्षित प्रारूप में नहीं है।${unmatchedSllSamples.length?' नमूना मान: '+unmatchedSllSamples.map(v=>'"'+escHtml(String(v))+'"').join(', '):' (SLL फ़ील्ड खाली आ रहा है — जांचें कि Google Sheet में "SLL" कॉलम का नाम/हैडर सही है या नहीं)'}`;
+    } else if(rowsInYearRange>0 && rowsInMonthRange===0){
+      diag += `⚠️ ${curY}/${prevY} वर्ष के रिकॉर्ड मौजूद हैं पर चयनित माह की सीमा में कोई नहीं — माह/वर्ष चयन जांचें।`;
+    } else if(rowsWithPsDate>0 && rowsInYearRange===0){
+      diag += `⚠️ डेटा में थाना+दिनांक तो है, पर ${curY} या ${prevY} वर्ष का कोई रिकॉर्ड नहीं मिला — हो सकता है सिंक डेटा पुराना/अलग वर्ष का हो, या दिनांक फ़ॉर्मेट सही से पार्स न हो रहा हो।`;
+    } else if(RAW.length>0 && rowsWithPsDate===0){
+      diag += `⚠️ RAW में रिकॉर्ड हैं पर किसी में भी थाना (PS) व FIR दिनांक दोनों वैध नहीं मिले — SAS Export शीट के हैडर नाम ("PS"/"FIR Reg Date") जांचें।`;
+    }
+    diag += `</div>`;
+    box.innerHTML = diag;
+    return;
+  }
 
   let alertRows = [];
   let h = `<div style="overflow-x:auto;"><table class="data-tbl" style="font-size:12.5px;"><thead><tr><th>थाना</th>`;
-  AW_CATS.forEach(c=>{ h += `<th>${AW_CATS_HI[c]}<br><small>(${MONTHS[month]} ${curY} / ${prevY})</small></th>`; });
+  AW_CATS.forEach(c=>{ h += `<th>${AW_CATS_HI[c]}<br><small>(${periodLabel} ${curY} / ${prevY})</small></th>`; });
   h += `</tr></thead><tbody>`;
   stList.forEach(ps=>{
     h += `<tr><td><b>${escHtml(ps)}</b></td>`;
@@ -9828,7 +9865,7 @@ function renderActWatch(){
       </ul>
     </div>`;
   } else {
-    alertHtml = `<div class="note" style="margin-top:16px;color:#1B5E20">🟢 सभी थाने चयनित माह में गत वर्ष के बराबर या अधिक प्रकरण दर्ज कर रहे हैं।</div>`;
+    alertHtml = `<div class="note" style="margin-top:16px;color:#1B5E20">🟢 सभी थाने चयनित अवधि में गत वर्ष के बराबर या अधिक प्रकरण दर्ज कर रहे हैं।</div>`;
   }
 
   box.innerHTML = h + alertHtml;

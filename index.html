@@ -6775,7 +6775,6 @@ function generateDeadlineLetterDoc(limits){
         `<td style="text-align:center;">${r.reg||'-'}</td>`+
         `<td>${escHtml(r.section||'-')}</td>`+
         `<td>${escHtml(r.io||'-')}</td>`+
-        `<td style="text-align:center;">${ioRankBadgeText(r.io, r.limit)}</td>`+
         `<td style="text-align:center;">${r.limit}</td>`+
         `<td style="text-align:center;${remStyle}">${remaining}${isCritical?' ⚠':''}</td>`+
       `</tr>`;
@@ -6831,7 +6830,7 @@ function generateDeadlineLetterDoc(limits){
   ${criticalCount>0?`<div class="urgentbox">⚠ अत्यंत आवश्यक : सूची में लाल रंग से चिन्हित <b>${criticalCount}</b> प्रकरण मात्र ${CRITICAL_DAYS} दिवस अथवा उससे कम में सीमा पूर्ण कर रहे हैं — इन्हें सर्वोच्च प्राथमिकता पर तत्काल निस्तारित करावें।</div>`:''}
   <p><b>संलग्नक : निकट-सीमा प्रकरणों की सूची (कुल ${rows.length} प्रकरण)</b></p>
   <table class="data">
-    <thead><tr><th>क्र.सं</th><th>थाना</th><th>FIR नंबर</th><th>पंजीकरण दिनांक</th><th>धारा / Act</th><th>अनुसंधान अधिकारी (IO)</th><th>IO रैंक</th><th>सीमा (दिन)</th><th>शेष दिन</th></tr></thead>
+    <thead><tr><th>क्र.सं</th><th>थाना</th><th>FIR नंबर</th><th>पंजीकरण दिनांक</th><th>धारा / Act</th><th>अनुसंधान अधिकारी (IO)</th><th>सीमा (दिन)</th><th>शेष दिन</th></tr></thead>
     <tbody>${bodyRows}</tbody>
   </table>
   <div class="legend"><span class="box" style="background:#FCE4E4;"></span>लाल पंक्ति = ${CRITICAL_DAYS} दिवस या उससे कम शेष (अत्यावश्यक)</div>

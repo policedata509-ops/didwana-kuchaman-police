@@ -5231,7 +5231,10 @@ function initControls(){
   monthSel.onchange = ()=>{ dbState.month = parseInt(monthSel.value); renderAll(); };
 
   const years = allYears();
-  if(dbState.years.length===0) dbState.years = years.slice(-3);
+  // पहले चुने वर्ष अब डेटा में मौजूद न हों (जैसे लाइव सिंक के बाद वर्ष-रेंज बदल जाए) तो चयन को स्वतः सही करें,
+  // ताकि "years खाली रह जाना" की वजह से चार्ट खाली न दिखें
+  const validSelectedYears = dbState.years.filter(y=>years.includes(y));
+  dbState.years = validSelectedYears.length ? validSelectedYears : years.slice(-3);
   const yearRow=document.getElementById('yearRow');
   yearRow.innerHTML='';
   years.forEach(y=>{
@@ -5428,7 +5431,7 @@ function ensureCanvas(id, full){
     card = document.createElement('div');
     card.className = 'chartcard'+(full?' full':'');
     card.id = 'card-'+id;
-    card.innerHTML = `<h4 id="ttl-${id}"></h4><canvas id="cv-${id}"></canvas>`;
+    card.innerHTML = `<h4 id="ttl-${id}"></h4><canvas id="cv-${id}"></canvas><div id="diag-${id}" style="font-size:11px;color:#b45309;margin-top:6px;line-height:1.5;"></div>`;
     grid.appendChild(card);
   }
   return document.getElementById('cv-'+id);
@@ -6735,30 +6738,41 @@ function generateDeadlineLetterDoc(limits){
     });
   });
 
+  const refNo = `डीड.-कुचा/अ.शा./2026/60-90/${rows.length}`;
   const html = `<!DOCTYPE html>
 <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
 <head><meta charset='utf-8'>
 <style>
-  body{font-family:'Mangal','Nirmala UI',sans-serif; font-size:14pt; line-height:1.5; color:#000;}
-  table{border-collapse:collapse; width:100%; margin-top:14px; font-size:11pt;}
-  td,th{border:1px solid #000; padding:4px 6px;}
-  th{background:#eee; font-weight:bold;}
-  h2{text-align:center; margin-bottom:2px;}
-  .sub{text-align:center; margin-top:0;}
-  .refline{display:flex; justify-content:space-between; margin-top:16px;}
+  body{font-family:'Mangal','Nirmala UI',sans-serif; font-size:10.5pt; line-height:1.2; color:#000; margin:0.75in;}
+  table.data{border-collapse:collapse; width:100%; margin-top:14px; font-size:10.5pt;}
+  table.data td, table.data th{border:1px solid #000; padding:4px 6px;}
+  table.data th{background:#eee; font-weight:bold;}
+  .hdr1{text-align:center; font-weight:bold; color:#646464; margin:0;}
+  .hdr2{text-align:center; font-weight:bold; color:#102C57; font-size:15pt; margin:2px 0 0 0;}
+  .hdr3{text-align:center; font-weight:bold; color:#102C57; font-size:15pt; margin:0;}
+  .hr{border:none; border-top:2px solid #B4C3D7; margin:8px 0 14px 0;}
+  table.refbox{width:100%; border-collapse:collapse; margin-bottom:10px;}
+  table.refbox td{border:none; font-size:10.5pt; vertical-align:top;}
+  table.refbox td.right{text-align:right;}
+  .subjectbox{background:#F0F4F8; border-left:4px solid #102C57; padding:8px 10px; font-weight:bold; color:#102C57; margin:10px 0;}
+  p{text-align:justify; margin:0 0 10px 0;}
 </style>
 </head>
 <body>
-  <h2>कार्यालय पुलिस अधीक्षक, जिला डीडवाना-कुचामन (राजस्थान)</h2>
-  <p class="sub">सांख्यिकी शाखा</p>
-  <div class="refline"><span>क्रमांक : सां.शा./डीके/2026/______</span><span>दिनांक : ${dateStr}</span></div>
-  <p>प्रति,<br>समस्त संबंधित थानाधिकारी महोदय,<br>${stationNamesHi} थाना, जिला डीडवाना-कुचामन।</p>
-  <p><b>विषय : आगामी ${DEADLINE_WARN_DAYS} दिवसों में 60/90-दिवस सीमा पूर्ण होने वाले प्रकरणों के प्राथमिकता से निस्तारण विषयक।</b></p>
-  <p>महोदय,</p>
+  <p class="hdr1">राजस्थान सरकार</p>
+  <p class="hdr2">कार्यालय</p>
+  <p class="hdr3">पुलिस अधीक्षक, जिला डीडवाना-कुचामन (राजस्थान)</p>
+  <hr class="hr">
+  <table class="refbox"><tr>
+    <td><b>क्रमांक</b> : ${refNo}</td>
+    <td class="right"><b>दिनांक</b> : ${dateStr}</td>
+  </tr></table>
+  <p>थानाधिकारीगण,<br>${stationNamesHi} थाना, जिला डीडवाना-कुचामन।</p>
+  <div class="subjectbox">विषय : आगामी ${DEADLINE_WARN_DAYS} दिवसों में 60/90-दिवस सीमा पूर्ण होने वाले प्रकरणों के प्राथमिकता से निस्तारण विषयक।</div>
   <p>उपर्युक्त विषयान्तर्गत लेख है कि सांख्यिकी शाखा द्वारा की गई समीक्षा में यह पाया गया है कि आपके थाने से संबंधित निम्नांकित प्रकरण आगामी ${DEADLINE_WARN_DAYS} दिवसों के भीतर 60/90-दिवस की निर्धारित सीमा पूर्ण करने जा रहे हैं। नियमानुसार उक्त सीमा के भीतर अनुसंधान पूर्ण कर चालान/अंतिम प्रतिवेदन (एफ.आर.) प्रस्तुत किया जाना अपेक्षित है।</p>
   <p>अतः आपसे अपेक्षा की जाती है कि संलग्न सूची में अंकित समस्त प्रकरणों का अनुसंधान सर्वोच्च प्राथमिकता पर पूर्ण कर निर्धारित समयावधि में चालान/एफ.आर. न्यायालय में प्रस्तुत करावें एवं पालना रिपोर्ट सांख्यिकी शाखा को शीघ्र उपलब्ध करावें।</p>
   <p><b>संलग्नक : निकट-सीमा प्रकरणों की सूची (कुल ${rows.length} प्रकरण)</b></p>
-  <table>
+  <table class="data">
     <thead><tr><th>क्र.सं</th><th>थाना</th><th>FIR नंबर</th><th>पंजीकरण दिनांक</th><th>धारा / Act</th><th>सीमा (दिन)</th><th>शेष दिन</th></tr></thead>
     <tbody>${bodyRows}</tbody>
   </table>
@@ -8195,7 +8209,10 @@ const SHEET_TABS = { gen:'Generic', fdc:'FDC', sas:'SAS', wanted:'Wanted' };
 function gvizUrl(id, tabName){ return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}&_cb=${Date.now()}`; }
 function exportUrl(id, tabName){ return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}&_cb2=${Date.now()}_${Math.random()}`; }
 
-function normHeader(h){ return String(h==null?'':h).trim().toLowerCase().replace(/\s+/g,' '); }
+// SAS Export जैसी फाइलों में कभी-कभी हेडर के हर शब्द के बाद "." जुड़ जाता है (जैसे "IPC." या "Women. Abuse.")
+// — इससे कॉलम-मिलान (colVal) टूट जाता है और चार्ट/डेटा खाली दिखते हैं। इसलिए तुलना से पहले
+// हर तरह के डॉट (.) और caret (^) चिन्ह हटाकर व अतिरिक्त स्पेस समेटकर तुलना की जाती है।
+function normHeader(h){ return String(h==null?'':h).trim().toLowerCase().replace(/[.^]/g,'').replace(/\s+/g,' ').trim(); }
 function buildHeaderIndex(headerRow){
   const idx = {};
   headerRow.forEach((h,i)=>{ idx[normHeader(h)] = i; });

@@ -6556,6 +6556,32 @@ function buildIOStats(limit){
   list.sort((a,b)=>b.compPct-a.compPct);
   return { top15: list.slice(0,15), bottom15: list.slice(-15).reverse(), all: list };
 }
+// किसी IO की वर्तमान रैंक व अनुपालन % निकालने हेतु (नाम सामान्यीकृत कुंजी → {rank, compPct, display, total})
+const _ioRankMapCache = {};
+function getIORankMap(limit){
+  if(_ioRankMapCache[limit]) return _ioRankMapCache[limit];
+  const stats = buildIOStats(limit);
+  const map = {};
+  stats.all.forEach((m,i)=>{ map[m.display.toLowerCase()] = {rank:i+1, total:stats.all.length, compPct:m.compPct, display:m.display}; });
+  _ioRankMapCache[limit] = map;
+  return map;
+}
+function ioRankBadgeText(io, limit){
+  if(!io) return '-';
+  const base = ioBaseKey(io);
+  if(!base) return '-';
+  const info = getIORankMap(limit)[base.toLowerCase()];
+  if(!info) return 'N/A';
+  return `${info.rank} / ${info.total}`;
+}
+function ioCompPctText(io, limit){
+  if(!io) return '-';
+  const base = ioBaseKey(io);
+  if(!base) return '-';
+  const info = getIORankMap(limit)[base.toLowerCase()];
+  if(!info) return 'N/A';
+  return pctFmt(info.compPct);
+}
 function ioRankRowsHTML(list){
   if(!list.length) return `<tr><td colspan="8" class="desc-td" style="text-align:center;color:var(--soft);">कोई पात्र अनुसंधान अधिकारी नहीं मिला</td></tr>`;
   return list.map((m,i)=>`<tr><td>${i+1}</td><td class="desc-td">${m.display}</td><td class="desc-td">${m.posting}</td><td>${m.total}</td><td>${m.c2}</td><td>${m.c3}</td><td>${m.c5}</td><td><b>${pctFmt(m.compPct)}</b></td></tr>`).join('');
@@ -6664,8 +6690,8 @@ function downloadDisposalPendingList(limit){
   const nearDue = allRows.filter(r=>r.rd>=nearMin && r.rd<=limit).sort((a,b)=>b.rd-a.rd);
   const underLimit = allRows.filter(r=>r.rd<limit).sort((a,b)=>b.rd-a.rd);
 
-  const header = ['क्र.सं','थाना','FIR नंबर','पंजीकरण दिनांक','धारा / Act','लंबित दिन (Pending Days)'];
-  const toRows = list => list.map((r,i)=>[i+1, r.ps, r.fir||'-', r.reg||'-', r.section||'-', r.rd]);
+  const header = ['क्र.सं','थाना','FIR नंबर','पंजीकरण दिनांक','धारा / Act','लंबित दिन (Pending Days)','अनुसंधान अधिकारी (IO)','IO वर्तमान रैंक','IO अनुपालन %'];
+  const toRows = list => list.map((r,i)=>[i+1, r.ps, r.fir||'-', r.reg||'-', r.section||'-', r.rd, r.io||'-', ioRankBadgeText(r.io, limit), ioCompPctText(r.io, limit)]);
 
   const summaryAOA = [
     ['विवरण','संख्या'],
@@ -6679,9 +6705,9 @@ function downloadDisposalPendingList(limit){
 
   exportRowsToXLSX(`${limit}-din-pending-list.xlsx`, [
     {name:'सारांश', aoa: summaryAOA, colWidths:[38,14]},
-    {name:`${limit} दिन से अधिक`, aoa: [header, ...toRows(overdue)], colWidths:[7,20,16,16,26,18], filter:true},
-    {name:`${nearMin}-${limit} दिन`, aoa: [header, ...toRows(nearDue)], colWidths:[7,20,16,16,26,18], filter:true},
-    {name:`${limit} दिन से कम (समस्त)`, aoa: [header, ...toRows(underLimit)], colWidths:[7,20,16,16,26,18], filter:true}
+    {name:`${limit} दिन से अधिक`, aoa: [header, ...toRows(overdue)], colWidths:[7,20,16,16,26,18,22,14,12], filter:true},
+    {name:`${nearMin}-${limit} दिन`, aoa: [header, ...toRows(nearDue)], colWidths:[7,20,16,16,26,18,22,14,12], filter:true},
+    {name:`${limit} दिन से कम (समस्त)`, aoa: [header, ...toRows(underLimit)], colWidths:[7,20,16,16,26,18,22,14,12], filter:true}
   ]);
 }
 
@@ -6730,11 +6756,30 @@ function generateDeadlineLetterDoc(limits){
 
   const today = new Date();
   const dateStr = String(today.getDate()).padStart(2,'0')+'.'+String(today.getMonth()+1).padStart(2,'0')+'.'+today.getFullYear();
+  const CRITICAL_DAYS = 5; // इतने या इससे कम शेष दिन वाले प्रकरण लाल रंग में हाइलाइट होंगे
+  let criticalCount = 0;
 
-  let bodyRows = '', sn = 1;
+  let bodyRows = '', sn = 1, zebra = 0;
   stations.forEach(ps=>{
     byPS[ps].sort((a,b)=>b.rd-a.rd).forEach(r=>{
-      bodyRows += `<tr><td>${sn++}</td><td>${ENG2HI_PS[ps]||ps}</td><td>${r.fir||'-'}</td><td>${r.reg||'-'}</td><td>${actTypeShort(r.section)}</td><td>${r.limit}</td><td>${r.limit-r.rd}</td></tr>`;
+      const remaining = r.limit - r.rd;
+      const isCritical = remaining <= CRITICAL_DAYS;
+      if(isCritical) criticalCount++;
+      const rowBg = isCritical ? '#FCE4E4' : (zebra%2===0 ? '#FFFFFF' : '#F5F8FC');
+      const remStyle = isCritical ? 'color:#B71C1C;font-weight:bold;' : 'font-weight:bold;color:#1B5E20;';
+      const rowStyle = `background:${rowBg};${isCritical?'border-left:4px solid #B71C1C;':''}`;
+      bodyRows += `<tr style="${rowStyle}">`+
+        `<td style="text-align:center;">${sn++}</td>`+
+        `<td>${ENG2HI_PS[ps]||ps}</td>`+
+        `<td>${r.fir||'-'}</td>`+
+        `<td style="text-align:center;">${r.reg||'-'}</td>`+
+        `<td>${escHtml(r.section||'-')}</td>`+
+        `<td>${escHtml(r.io||'-')}</td>`+
+        `<td style="text-align:center;">${ioRankBadgeText(r.io, r.limit)}</td>`+
+        `<td style="text-align:center;">${r.limit}</td>`+
+        `<td style="text-align:center;${remStyle}">${remaining}${isCritical?' ⚠':''}</td>`+
+      `</tr>`;
+      zebra++;
     });
   });
 
@@ -6743,25 +6788,37 @@ function generateDeadlineLetterDoc(limits){
 <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
 <head><meta charset='utf-8'>
 <style>
-  body{font-family:'Mangal','Nirmala UI',sans-serif; font-size:10.5pt; line-height:1.2; color:#000; margin:0.75in;}
-  table.data{border-collapse:collapse; width:100%; margin-top:14px; font-size:10.5pt;}
-  table.data td, table.data th{border:1px solid #000; padding:4px 6px;}
-  table.data th{background:#eee; font-weight:bold;}
-  .hdr1{text-align:center; font-weight:bold; color:#646464; margin:0;}
-  .hdr2{text-align:center; font-weight:bold; color:#102C57; font-size:15pt; margin:2px 0 0 0;}
-  .hdr3{text-align:center; font-weight:bold; color:#102C57; font-size:15pt; margin:0;}
-  .hr{border:none; border-top:2px solid #B4C3D7; margin:8px 0 14px 0;}
-  table.refbox{width:100%; border-collapse:collapse; margin-bottom:10px;}
+  @page{ margin:0.7in; }
+  body{font-family:'Mangal','Nirmala UI',sans-serif; font-size:10.5pt; line-height:1.35; color:#1a1a1a; margin:0.7in;}
+  .letterbox{border:2px solid #102C57; border-radius:6px; padding:18px 22px;}
+  .topbar{background:#102C57; height:6px; border-radius:3px 3px 0 0; margin:-18px -22px 14px -22px;}
+  .hdr1{text-align:center; font-weight:bold; color:#6B7280; margin:0; font-size:10pt; letter-spacing:1px;}
+  .hdr2{text-align:center; font-weight:bold; color:#102C57; font-size:16pt; margin:3px 0 0 0;}
+  .hdr3{text-align:center; font-weight:bold; color:#102C57; font-size:13pt; margin:2px 0 0 0;}
+  .hdr4{text-align:center; color:#B45309; font-size:9.5pt; margin:2px 0 0 0; font-weight:bold;}
+  .hr{border:none; border-top:2px solid #B4C3D7; margin:10px 0 14px 0;}
+  table.refbox{width:100%; border-collapse:collapse; margin-bottom:12px;}
   table.refbox td{border:none; font-size:10.5pt; vertical-align:top;}
   table.refbox td.right{text-align:right;}
-  .subjectbox{background:#F0F4F8; border-left:4px solid #102C57; padding:8px 10px; font-weight:bold; color:#102C57; margin:10px 0;}
+  .subjectbox{background:#EEF3FA; border-left:5px solid #102C57; padding:9px 12px; font-weight:bold; color:#102C57; margin:12px 0; border-radius:0 4px 4px 0;}
+  .urgentbox{background:#FCE4E4; border-left:5px solid #B71C1C; padding:8px 12px; font-weight:bold; color:#B71C1C; margin:10px 0 14px 0; border-radius:0 4px 4px 0; font-size:10pt;}
   p{text-align:justify; margin:0 0 10px 0;}
+  table.data{border-collapse:collapse; width:100%; margin-top:10px; font-size:9.5pt;}
+  table.data td, table.data th{border:1px solid #B4C3D7; padding:5px 6px;}
+  table.data th{background:#102C57; color:#fff; font-weight:bold; text-align:center; font-size:9.3pt;}
+  .legend{margin-top:8px; font-size:9pt; color:#555;}
+  .legend .box{display:inline-block; width:11px; height:11px; border:1px solid #999; vertical-align:middle; margin-right:4px;}
+  .signblock{margin-top:30px;}
+  .footernote{margin-top:22px; font-size:9.3pt; color:#444;}
 </style>
 </head>
 <body>
+<div class="letterbox">
+  <div class="topbar"></div>
   <p class="hdr1">राजस्थान सरकार</p>
   <p class="hdr2">कार्यालय</p>
   <p class="hdr3">पुलिस अधीक्षक, जिला डीडवाना-कुचामन (राजस्थान)</p>
+  <p class="hdr4">सांख्यिकी शाखा (Statistics Branch)</p>
   <hr class="hr">
   <table class="refbox"><tr>
     <td><b>क्रमांक</b> : ${refNo}</td>
@@ -6771,17 +6828,19 @@ function generateDeadlineLetterDoc(limits){
   <div class="subjectbox">विषय : आगामी ${DEADLINE_WARN_DAYS} दिवसों में 60/90-दिवस सीमा पूर्ण होने वाले प्रकरणों के प्राथमिकता से निस्तारण विषयक।</div>
   <p>उपर्युक्त विषयान्तर्गत लेख है कि सांख्यिकी शाखा द्वारा की गई समीक्षा में यह पाया गया है कि आपके थाने से संबंधित निम्नांकित प्रकरण आगामी ${DEADLINE_WARN_DAYS} दिवसों के भीतर 60/90-दिवस की निर्धारित सीमा पूर्ण करने जा रहे हैं। नियमानुसार उक्त सीमा के भीतर अनुसंधान पूर्ण कर चालान/अंतिम प्रतिवेदन (एफ.आर.) प्रस्तुत किया जाना अपेक्षित है।</p>
   <p>अतः आपसे अपेक्षा की जाती है कि संलग्न सूची में अंकित समस्त प्रकरणों का अनुसंधान सर्वोच्च प्राथमिकता पर पूर्ण कर निर्धारित समयावधि में चालान/एफ.आर. न्यायालय में प्रस्तुत करावें एवं पालना रिपोर्ट सांख्यिकी शाखा को शीघ्र उपलब्ध करावें।</p>
+  ${criticalCount>0?`<div class="urgentbox">⚠ अत्यंत आवश्यक : सूची में लाल रंग से चिन्हित <b>${criticalCount}</b> प्रकरण मात्र ${CRITICAL_DAYS} दिवस अथवा उससे कम में सीमा पूर्ण कर रहे हैं — इन्हें सर्वोच्च प्राथमिकता पर तत्काल निस्तारित करावें।</div>`:''}
   <p><b>संलग्नक : निकट-सीमा प्रकरणों की सूची (कुल ${rows.length} प्रकरण)</b></p>
   <table class="data">
-    <thead><tr><th>क्र.सं</th><th>थाना</th><th>FIR नंबर</th><th>पंजीकरण दिनांक</th><th>धारा / Act</th><th>सीमा (दिन)</th><th>शेष दिन</th></tr></thead>
+    <thead><tr><th>क्र.सं</th><th>थाना</th><th>FIR नंबर</th><th>पंजीकरण दिनांक</th><th>धारा / Act</th><th>अनुसंधान अधिकारी (IO)</th><th>IO रैंक</th><th>सीमा (दिन)</th><th>शेष दिन</th></tr></thead>
     <tbody>${bodyRows}</tbody>
   </table>
-  <p style="margin-top:26px;">भवदीय,</p>
-  <p style="margin-top:40px;"><b>&nbsp;</b><br>पुलिस अधीक्षक,<br>डीडवाना-कुचामन।</p>
-  <p style="margin-top:20px;">प्रतिलिपि निम्न को सूचनार्थ एवं संबंधित थानाधिकारी से पालना करवाने हेतु प्रेषित —</p>
-  <ol>
+  <div class="legend"><span class="box" style="background:#FCE4E4;"></span>लाल पंक्ति = ${CRITICAL_DAYS} दिवस या उससे कम शेष (अत्यावश्यक)</div>
+  <p class="signblock" style="margin-top:26px;"><b>&nbsp;</b><br>पुलिस अधीक्षक,<br>डीडवाना-कुचामन।</p>
+  <p class="footernote">प्रतिलिपि निम्न को सूचनार्थ एवं संबंधित थानाधिकारी से पालना करवाने हेतु प्रेषित —</p>
+  <ol class="footernote">
     ${circlesInvolved.map(c=>`<li>वृत्ताधिकारी, ${c} वृत्त, डीडवाना-कुचामन।</li>`).join('')}
   </ol>
+</div>
 </body>
 </html>`;
 
@@ -8440,6 +8499,7 @@ async function loadLiveData(){
   if(results[2].status==='fulfilled'){ RAW = results[2].value; successCount++; } else errors['SAS Export'] = String(results[2].reason && results[2].reason.message || results[2].reason);
   if(results[3].status==='fulfilled'){ WANTED_DATA = results[3].value; successCount++; } else errors['वांछित अपराधी रजिस्टर'] = String(results[3].reason && results[3].reason.message || results[3].reason);
   SEARCH_IDX = null;
+  for(const k in _ioRankMapCache) delete _ioRankMapCache[k]; // डेटा बदला है तो IO रैंक कैश भी रीसेट करें
   buildRecords(); // RAW ताज़ा हुआ है — dbRecords (dashboard का डेटा-स्रोत) भी दोबारा बनाना ज़रूरी है, वरना dashboard पुराना डेटा दिखाता रहता है
   LIVE_SYNC_STATE = {status: successCount===4?'live':(successCount>0?'partial':'offline'), time:new Date(), errors};
   if(successCount>0) saveOfflineCache(); // जो भी नया मिला उसे तुरंत ऑफलाइन-कैश में भी सहेज लें
@@ -8868,6 +8928,7 @@ function parseColorToRgbArr(colorStr){
 // ============================================================
 function refreshAfterDataChange(){
   SEARCH_IDX = null;
+  for(const k in _ioRankMapCache) delete _ioRankMapCache[k]; // डेटा बदला है तो IO रैंक कैश भी रीसेट करें
   buildRecords(); // यहाँ भी RAW ताज़ा हो सकता है — dbRecords को हमेशा दोबारा बनाएं
   const activePg = document.querySelector('.pg.on');
   if(activePg){
@@ -9896,10 +9957,41 @@ function renderActWatch(){
 let mpMultiSel = {io:null, ps:null};
 let mpIOSet = new Set(), mpPsSet = new Set();
 let mpLastResults = [];
+let mpSearchText = '';
 
 function mpAllPendingRows(){
-  // 60 व 90 दोनों बकेट मिलाकर सभी पेंडिंग रिकॉर्ड
-  return buildRowsGeneric(60,null).concat(buildRowsGeneric(90,null)).filter(r=>!r.disposed);
+  // 60 व 90 दोनों बकेट मिलाकर सभी पेंडिंग रिकॉर्ड (प्रत्येक रिकॉर्ड पर उसकी बकेट limit भी टैग करें ताकि सही IO रैंक निकाली जा सके)
+  return buildRowsGeneric(60,null).map(r=>({...r, limit:60})).concat(buildRowsGeneric(90,null).map(r=>({...r, limit:90}))).filter(r=>!r.disposed);
+}
+function mpRowMatchesSearch(r, q){
+  if(!q) return true;
+  q = q.toLowerCase();
+  return String(r.ps||'').toLowerCase().includes(q) ||
+    String(r.fir||'').toLowerCase().includes(q) ||
+    String(r.io||'').toLowerCase().includes(q) ||
+    String(r.section||'').toLowerCase().includes(q);
+}
+function mpVisibleResults(){
+  return mpLastResults.filter(r=>mpRowMatchesSearch(r, mpSearchText));
+}
+function mpRenderTable(){
+  const tbody = document.getElementById('mpTableBody');
+  if(!tbody) return;
+  const filtered = mpVisibleResults();
+  const countEl = document.getElementById('mpSearchCount');
+  if(countEl) countEl.textContent = mpSearchText ? `(${filtered.length} / ${mpLastResults.length} मेल खाते)` : '';
+  if(!filtered.length){
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--soft);padding:14px;">कोई मेल खाता रिकॉर्ड नहीं मिला</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(r=>{
+    const flag = r.rd!=null && r.rd>90 ? 'background:#FFEBEE;color:#B71C1C;font-weight:700;' : (r.rd!=null && r.rd>60 ? 'background:#FFF3E0;color:#B45309;font-weight:700;' : '');
+    return `<tr><td>${escHtml(r.ps)}</td><td>${escHtml(r.fir)}</td><td>${escHtml(r.io||'-')}</td><td>${escHtml(r.section||'-')}</td><td style="${flag}text-align:center;">${r.rd!=null?r.rd:'-'}</td><td style="text-align:center;">${ioRankBadgeText(r.io, r.limit)}</td><td style="text-align:center;"><b>${ioCompPctText(r.io, r.limit)}</b></td></tr>`;
+  }).join('');
+}
+function mpApplySearchFilter(v){
+  mpSearchText = v || '';
+  mpRenderTable();
 }
 function ensureMyPendingLoaded(){
   const rows = mpAllPendingRows();
@@ -9930,6 +10022,7 @@ function runMyPendingSearch(){
   });
   rows.sort((a,b)=>(b.rd||0)-(a.rd||0)); // सबसे पुराना पेंडिंग सबसे ऊपर
   mpLastResults = rows;
+  mpSearchText = '';
   const over60 = rows.filter(r=>r.rd!=null && r.rd>60).length;
   const over90 = rows.filter(r=>r.rd!=null && r.rd>90).length;
   let h = `<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
@@ -9940,21 +10033,22 @@ function runMyPendingSearch(){
   if(!rows.length){
     h += '<div class="note">चयनित IO/थाना हेतु कोई पेंडिंग फाइल नहीं मिली — बधाई हो! 🎉</div>';
   } else {
-    h += `<div style="overflow-x:auto;"><table class="data-tbl" style="font-size:12.5px;"><thead><tr><th>थाना</th><th>FIR No/Date</th><th>अनुसंधान अधिकारी</th><th>धारा</th><th>पेंडिंग दिन</th></tr></thead><tbody>`;
-    rows.forEach(r=>{
-      const flag = r.rd!=null && r.rd>90 ? 'background:#FFEBEE;color:#B71C1C;font-weight:700;' : (r.rd!=null && r.rd>60 ? 'background:#FFF3E0;color:#B45309;font-weight:700;' : '');
-      h += `<tr><td>${escHtml(r.ps)}</td><td>${escHtml(r.fir)}</td><td>${escHtml(r.io||'-')}</td><td>${escHtml(r.section||'-')}</td><td style="${flag}text-align:center;">${r.rd!=null?r.rd:'-'}</td></tr>`;
-    });
-    h += `</tbody></table></div>`;
+    h += `<div style="margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <input type="text" id="mpSearchBox" placeholder="🔍 FIR नंबर, थाना, IO नाम या धारा से खोजें..." oninput="mpApplySearchFilter(this.value)" style="flex:1;min-width:220px;padding:8px 12px;border-radius:8px;border:1px solid #ccc;font-size:13px;">
+      <span id="mpSearchCount" style="font-size:12px;color:var(--soft);"></span>
+    </div>`;
+    h += `<div style="overflow-x:auto;"><table class="data-tbl" style="font-size:12.5px;"><thead><tr><th>थाना</th><th>FIR No/Date</th><th>अनुसंधान अधिकारी</th><th>धारा</th><th>पेंडिंग दिन</th><th>IO रैंक</th><th>IO अनुपालन %</th></tr></thead><tbody id="mpTableBody"></tbody></table></div>`;
   }
   box.innerHTML = h;
+  mpRenderTable();
 }
 function downloadMyPendingList(){
   if(!mpLastResults.length){ toast('पहले "देखें" दबाकर सूची तैयार करें'); return; }
-  const header = ['थाना','FIR No/Date','अनुसंधान अधिकारी','धारा','पेंडिंग दिन'];
+  const rowsToExport = mpVisibleResults();
+  const header = ['थाना','FIR No/Date','अनुसंधान अधिकारी','धारा','पेंडिंग दिन','IO रैंक','IO अनुपालन %'];
   const lines = [header.map(csvEsc).join(',')];
-  mpLastResults.forEach(r=>{
-    lines.push([r.ps, r.fir, r.io||'-', r.section||'-', r.rd!=null?r.rd:'-'].map(csvEsc).join(','));
+  rowsToExport.forEach(r=>{
+    lines.push([r.ps, r.fir, r.io||'-', r.section||'-', r.rd!=null?r.rd:'-', ioRankBadgeText(r.io, r.limit), ioCompPctText(r.io, r.limit)].map(csvEsc).join(','));
   });
   dlBlob(lines.join('\r\n'), 'text/csv;charset=utf-8', 'meri-pending-failein.csv');
 }

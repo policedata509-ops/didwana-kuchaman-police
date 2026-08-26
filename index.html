@@ -2595,7 +2595,8 @@ function reply(obj) {
       </div>
       <div style="margin-top:12px">
         <button class="btn-fill" style="background:linear-gradient(135deg,#7B1E3A,#4A1224)" onclick="renderActWatch()">🔍 तुलना देखें</button>
-        <button class="btn-fill sm" style="background:linear-gradient(135deg,#B45309,#7C2D12)" onclick="awGenerateLetters()">📝 कम कार्यवाही वाले थानों हेतु पत्र जारी करें (PDF)</button>
+        <button class="btn-fill sm" style="background:linear-gradient(135deg,#B45309,#7C2D12)" onclick="awGenerateLetters()">📝 कम कार्यवाही वाले थानों हेतु पत्र (PDF)</button>
+        <button class="btn-fill sm" style="background:linear-gradient(135deg,#7C2D12,#4A1224)" onclick="awGenerateLettersWord()">📄 कम कार्यवाही वाले थानों हेतु पत्र (Word)</button>
       </div>
     </div>
     <div id="aw-letters-status" class="note" style="margin-top:8px"></div>
@@ -6621,6 +6622,7 @@ function renderHomeDeadlineAlert(){
       <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn-fill sm" style="background:#B45309;" onclick="downloadNearingDeadlineList(${JSON.stringify(limsPresent)})">📥 सूची डाउनलोड</button>
         <button class="btn-fill sm" style="background:#7C2D12;" onclick="generateDeadlineLetterDoc(${JSON.stringify(limsPresent)})">📄 पत्र (Word) बनाएं</button>
+        <button class="btn-fill sm" style="background:#B45309;" onclick="generateDeadlineLetterPDF(${JSON.stringify(limsPresent)})">📕 पत्र (PDF) बनाएं</button>
       </div>
     </div>
   </div>`;
@@ -6634,6 +6636,7 @@ function deadlineAlertHTML(rows, limit){
     <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn-fill sm" style="background:#B45309;" onclick="downloadNearingDeadlineList([${limit}])">📥 सूची डाउनलोड</button>
       <button class="btn-fill sm" style="background:#7C2D12;" onclick="generateDeadlineLetterDoc([${limit}])">📄 पत्र (Word) बनाएं</button>
+      <button class="btn-fill sm" style="background:#B45309;" onclick="generateDeadlineLetterPDF([${limit}])">📕 पत्र (PDF) बनाएं</button>
     </div>
   </div>`;
 }
@@ -6745,10 +6748,10 @@ function downloadNearingDeadlineList(limits){
 }
 
 // ---------- निकट-सीमा प्रकरणों हेतु SP कार्यालय की ओर से पत्र (Word) — थानाधिकारी को, वृत्ताधिकारी को प्रतिलिपि ----------
-function generateDeadlineLetterDoc(limits){
+function buildDeadlineLetterParts(limits){
   limits = limits && limits.length ? limits : [60,90];
   const rows = getNearingDeadlineRowsGrouped(limits);
-  if(!rows.length){ toast('⚠️ कोई निकट-सीमा प्रकरण नहीं मिला'); return; }
+  if(!rows.length) return null;
 
   const byPS = {};
   rows.forEach(r=>{ (byPS[r.ps] = byPS[r.ps] || []).push(r); });
@@ -6758,33 +6761,46 @@ function generateDeadlineLetterDoc(limits){
 
   const today = new Date();
   const dateStr = String(today.getDate()).padStart(2,'0')+'.'+String(today.getMonth()+1).padStart(2,'0')+'.'+today.getFullYear();
-  const CRITICAL_DAYS = 5; // इतने या इससे कम शेष दिन वाले प्रकरण लाल रंग में हाइलाइट होंगे
+  const CRITICAL_DAYS = 5;
   let criticalCount = 0;
 
-  let bodyRows = '', sn = 1, zebra = 0;
+  const rowObjs = [];
+  let sn = 1;
   stations.forEach(ps=>{
     byPS[ps].sort((a,b)=>b.rd-a.rd).forEach(r=>{
       const remaining = r.limit - r.rd;
       const isCritical = remaining <= CRITICAL_DAYS;
       if(isCritical) criticalCount++;
-      const rowBg = isCritical ? '#FCE4E4' : (zebra%2===0 ? '#FFFFFF' : '#F5F8FC');
-      const remStyle = isCritical ? 'color:#B71C1C;font-weight:bold;' : 'font-weight:bold;color:#1B5E20;';
-      const rowStyle = `background:${rowBg};${isCritical?'border-left:4px solid #B71C1C;':''}`;
-      bodyRows += `<tr style="${rowStyle}">`+
-        `<td style="text-align:center;">${sn++}</td>`+
-        `<td>${ENG2HI_PS[ps]||ps}</td>`+
-        `<td>${r.fir||'-'}</td>`+
-        `<td style="text-align:center;">${r.reg||'-'}</td>`+
-        `<td>${escHtml(r.section||'-')}</td>`+
-        `<td>${escHtml(r.io||'-')}</td>`+
-        `<td style="text-align:center;">${r.limit}</td>`+
-        `<td style="text-align:center;${remStyle}">${remaining}${isCritical?' ⚠':''}</td>`+
-      `</tr>`;
-      zebra++;
+      rowObjs.push({sn:sn++, ps, r, remaining, isCritical});
     });
   });
 
-  const refNo = `डीड.-कुचा/अ.शा./2026/60-90/${rows.length}`;
+  const refNo = `डीड.-कुचा/अ.शा./SPL/1/${today.getFullYear()}`;
+  return {limits, rows, stations, circlesInvolved, stationNamesHi, dateStr, refNo, criticalCount, rowObjs, CRITICAL_DAYS};
+}
+
+function deadlineRowHtml(o, zebraIdx){
+  const rowBg = o.isCritical ? '#FCE4E4' : (zebraIdx%2===0 ? '#FFFFFF' : '#F5F8FC');
+  const remStyle = o.isCritical ? 'color:#B71C1C;font-weight:bold;' : 'font-weight:bold;color:#1B5E20;';
+  const rowStyle = `background:${rowBg};${o.isCritical?'border-left:4px solid #B71C1C;':''}`;
+  return `<tr style="${rowStyle}">`+
+    `<td style="text-align:center;">${o.sn}</td>`+
+    `<td>${ENG2HI_PS[o.ps]||o.ps}</td>`+
+    `<td>${o.r.fir||'-'}</td>`+
+    `<td style="text-align:center;">${o.r.reg||'-'}</td>`+
+    `<td>${escHtml(o.r.section||'-')}</td>`+
+    `<td>${escHtml(o.r.io||'-')}</td>`+
+    `<td style="text-align:center;">${o.r.limit}</td>`+
+    `<td style="text-align:center;${remStyle}">${o.remaining}${o.isCritical?' ⚠':''}</td>`+
+  `</tr>`;
+}
+
+// ---------- निकट-सीमा प्रकरणों हेतु SP कार्यालय की ओर से पत्र (Word) — थानाधिकारी को, वृत्ताधिकारी को प्रतिलिपि ----------
+function generateDeadlineLetterDoc(limits){
+  const p = buildDeadlineLetterParts(limits);
+  if(!p){ toast('⚠️ कोई निकट-सीमा प्रकरण नहीं मिला'); return; }
+  const bodyRows = p.rowObjs.map((o,i)=>deadlineRowHtml(o,i)).join('');
+
   const html = `<!DOCTYPE html>
 <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
 <head><meta charset='utf-8'>
@@ -6809,7 +6825,7 @@ function generateDeadlineLetterDoc(limits){
   table.data th{background:#102C57; color:#fff; font-weight:bold; text-align:center; font-size:9.3pt;}
   .legend{margin-top:8px; font-size:9pt; color:#555;}
   .legend .box{display:inline-block; width:11px; height:11px; border:1px solid #999; vertical-align:middle; margin-right:4px;}
-  .signblock{margin-top:30px;}
+  .signblock{margin-top:30px; text-align:right;}
   .footernote{margin-top:22px; font-size:9.3pt; color:#444;}
 </style>
 </head>
@@ -6822,24 +6838,24 @@ function generateDeadlineLetterDoc(limits){
   <p class="hdr4">सांख्यिकी शाखा (Statistics Branch)</p>
   <hr class="hr">
   <table class="refbox"><tr>
-    <td><b>क्रमांक</b> : ${refNo}</td>
-    <td class="right"><b>दिनांक</b> : ${dateStr}</td>
+    <td><b>क्रमांक</b> : ${p.refNo}</td>
+    <td class="right"><b>दिनांक</b> : ${p.dateStr}</td>
   </tr></table>
-  <p>थानाधिकारीगण,<br>${stationNamesHi} थाना, जिला डीडवाना-कुचामन।</p>
+  <p>थानाधिकारीगण,<br>${p.stationNamesHi} थाना, जिला डीडवाना-कुचामन।</p>
   <div class="subjectbox">विषय : आगामी ${DEADLINE_WARN_DAYS} दिवसों में 60/90-दिवस सीमा पूर्ण होने वाले प्रकरणों के प्राथमिकता से निस्तारण विषयक।</div>
   <p>उपर्युक्त विषयान्तर्गत लेख है कि सांख्यिकी शाखा द्वारा की गई समीक्षा में यह पाया गया है कि आपके थाने से संबंधित निम्नांकित प्रकरण आगामी ${DEADLINE_WARN_DAYS} दिवसों के भीतर 60/90-दिवस की निर्धारित सीमा पूर्ण करने जा रहे हैं। नियमानुसार उक्त सीमा के भीतर अनुसंधान पूर्ण कर चालान/अंतिम प्रतिवेदन (एफ.आर.) प्रस्तुत किया जाना अपेक्षित है।</p>
   <p>अतः आपसे अपेक्षा की जाती है कि संलग्न सूची में अंकित समस्त प्रकरणों का अनुसंधान सर्वोच्च प्राथमिकता पर पूर्ण कर निर्धारित समयावधि में चालान/एफ.आर. न्यायालय में प्रस्तुत करावें एवं पालना रिपोर्ट सांख्यिकी शाखा को शीघ्र उपलब्ध करावें।</p>
-  ${criticalCount>0?`<div class="urgentbox">⚠ अत्यंत आवश्यक : सूची में लाल रंग से चिन्हित <b>${criticalCount}</b> प्रकरण मात्र ${CRITICAL_DAYS} दिवस अथवा उससे कम में सीमा पूर्ण कर रहे हैं — इन्हें सर्वोच्च प्राथमिकता पर तत्काल निस्तारित करावें।</div>`:''}
-  <p><b>संलग्नक : निकट-सीमा प्रकरणों की सूची (कुल ${rows.length} प्रकरण)</b></p>
+  ${p.criticalCount>0?`<div class="urgentbox">⚠ अत्यंत आवश्यक : सूची में लाल रंग से चिन्हित <b>${p.criticalCount}</b> प्रकरण मात्र ${p.CRITICAL_DAYS} दिवस अथवा उससे कम में सीमा पूर्ण कर रहे हैं — इन्हें सर्वोच्च प्राथमिकता पर तत्काल निस्तारित करावें।</div>`:''}
+  <p><b>संलग्नक : निकट-सीमा प्रकरणों की सूची (कुल ${p.rows.length} प्रकरण)</b></p>
   <table class="data">
     <thead><tr><th>क्र.सं</th><th>थाना</th><th>FIR नंबर</th><th>पंजीकरण दिनांक</th><th>धारा / Act</th><th>अनुसंधान अधिकारी (IO)</th><th>सीमा (दिन)</th><th>शेष दिन</th></tr></thead>
     <tbody>${bodyRows}</tbody>
   </table>
-  <div class="legend"><span class="box" style="background:#FCE4E4;"></span>लाल पंक्ति = ${CRITICAL_DAYS} दिवस या उससे कम शेष (अत्यावश्यक)</div>
-  <p class="signblock" style="margin-top:26px;"><b>&nbsp;</b><br>पुलिस अधीक्षक,<br>डीडवाना-कुचामन।</p>
+  <div class="legend"><span class="box" style="background:#FCE4E4;"></span>लाल पंक्ति = ${p.CRITICAL_DAYS} दिवस या उससे कम शेष (अत्यावश्यक)</div>
+  <p class="signblock"><b>&nbsp;</b><br>पुलिस अधीक्षक,<br>डीडवाना-कुचामन।</p>
   <p class="footernote">प्रतिलिपि निम्न को सूचनार्थ एवं संबंधित थानाधिकारी से पालना करवाने हेतु प्रेषित —</p>
   <ol class="footernote">
-    ${circlesInvolved.map(c=>`<li>वृत्ताधिकारी, ${c} वृत्त, डीडवाना-कुचामन।</li>`).join('')}
+    ${p.circlesInvolved.map(c=>`<li>वृत्ताधिकारी, ${c} वृत्त, डीडवाना-कुचामन।</li>`).join('')}
   </ol>
 </div>
 </body>
@@ -6848,12 +6864,97 @@ function generateDeadlineLetterDoc(limits){
   const blob = new Blob(['\ufeff', html], {type:'application/msword'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `nikat-seema-patra-${dateStr.replace(/\./g,'')}.doc`;
+  a.download = `nikat-seema-patra-${p.dateStr.replace(/\./g,'')}.doc`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   setTimeout(()=>URL.revokeObjectURL(a.href), 60000);
   toast('✅ पत्र (Word) डाउनलोड हो रहा है');
+}
+
+// ---------- निकट-सीमा प्रकरणों हेतु वही पत्र PDF रूप में (प्रति पेज सीमित पंक्तियाँ — पेज नीचे से कटे नहीं) ----------
+async function generateDeadlineLetterPDF(limits){
+  const p = buildDeadlineLetterParts(limits);
+  if(!p){ toast('⚠️ कोई निकट-सीमा प्रकरण नहीं मिला'); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){ toast('PDF लाइब्रेरी लोड नहीं हो पाई'); return; }
+  if(typeof html2canvas==='undefined'){ toast('इमेज लाइब्रेरी लोड नहीं हो पाई — इंटरनेट कनेक्शन जांचें'); return; }
+  toast('⏳ पत्र (PDF) तैयार हो रहा है...');
+
+  const ROWS_PER_PAGE = 18; // प्रति पेज इतनी पंक्तियाँ — ताकि हर पेज स्वाभाविक रूप से पूरा समाहित रहे
+  const chunks = [];
+  for(let i=0;i<p.rowObjs.length;i+=ROWS_PER_PAGE) chunks.push(p.rowObjs.slice(i, i+ROWS_PER_PAGE));
+  if(!chunks.length) chunks.push([]);
+
+  const headerHtml = `
+    <div style="text-align:center;border-bottom:2.5px solid #102C57;padding-bottom:6px;margin-bottom:10px">
+      <div style="font-size:10pt;font-weight:700;color:#6B7280;letter-spacing:1px">राजस्थान सरकार</div>
+      <div style="font-size:15px;font-weight:700;color:#102C57">कार्यालय पुलिस अधीक्षक, जिला डीडवाना-कुचामन (राजस्थान)</div>
+      <div style="font-size:10.5px;color:#B45309;font-weight:700">सांख्यिकी शाखा (Statistics Branch)</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:8px">
+      <div><b>क्रमांक</b>: ${p.refNo}</div>
+      <div><b>दिनांक</b>: ${p.dateStr}</div>
+    </div>
+    <div style="margin-bottom:8px;font-size:11.5px">थानाधिकारीगण,<br>${p.stationNamesHi} थाना, जिला डीडवाना-कुचामन।</div>
+    <div style="background:#EEF3FA;border-left:5px solid #102C57;padding:7px 10px;font-weight:700;color:#102C57;margin:8px 0;font-size:11px">विषय : आगामी ${DEADLINE_WARN_DAYS} दिवसों में 60/90-दिवस सीमा पूर्ण होने वाले प्रकरणों के प्राथमिकता से निस्तारण विषयक।</div>
+    <div style="font-size:11px;text-align:justify;margin-bottom:6px">उपर्युक्त विषयान्तर्गत लेख है कि सांख्यिकी शाखा द्वारा की गई समीक्षा में यह पाया गया है कि आपके थाने से संबंधित निम्नांकित प्रकरण आगामी ${DEADLINE_WARN_DAYS} दिवसों के भीतर 60/90-दिवस की निर्धारित सीमा पूर्ण करने जा रहे हैं। नियमानुसार उक्त सीमा के भीतर अनुसंधान पूर्ण कर चालान/अंतिम प्रतिवेदन (एफ.आर.) प्रस्तुत किया जाना अपेक्षित है।</div>
+    <div style="font-size:11px;text-align:justify;margin-bottom:6px">अतः आपसे अपेक्षा की जाती है कि संलग्न सूची में अंकित समस्त प्रकरणों का अनुसंधान सर्वोच्च प्राथमिकता पर पूर्ण कर निर्धारित समयावधि में चालान/एफ.आर. न्यायालय में प्रस्तुत करावें एवं पालना रिपोर्ट सांख्यिकी शाखा को शीघ्र उपलब्ध करावें।</div>
+    ${p.criticalCount>0?`<div style="background:#FCE4E4;border-left:5px solid #B71C1C;padding:7px 10px;font-weight:700;color:#B71C1C;margin:6px 0 8px;font-size:10.5px">⚠ अत्यंत आवश्यक : सूची में लाल रंग से चिन्हित <b>${p.criticalCount}</b> प्रकरण मात्र ${p.CRITICAL_DAYS} दिवस अथवा उससे कम में सीमा पूर्ण कर रहे हैं।</div>`:''}
+    <div style="font-size:11px;margin-bottom:4px"><b>संलग्नक : निकट-सीमा प्रकरणों की सूची (कुल ${p.rows.length} प्रकरण)</b></div>`;
+
+  const tableHeadHtml = `<thead><tr style="background:#102C57;color:#fff">
+      <th style="padding:4px 5px;border:1px solid #B4C3D7">क्र.सं</th><th style="padding:4px 5px;border:1px solid #B4C3D7">थाना</th>
+      <th style="padding:4px 5px;border:1px solid #B4C3D7">FIR नंबर</th><th style="padding:4px 5px;border:1px solid #B4C3D7">पंजीकरण दिनांक</th>
+      <th style="padding:4px 5px;border:1px solid #B4C3D7">धारा / Act</th><th style="padding:4px 5px;border:1px solid #B4C3D7">अनुसंधान अधिकारी</th>
+      <th style="padding:4px 5px;border:1px solid #B4C3D7">सीमा</th><th style="padding:4px 5px;border:1px solid #B4C3D7">शेष दिन</th></tr></thead>`;
+
+  const footerHtml = `
+    <div style="font-size:9.5px;color:#555;margin-top:6px"><span style="display:inline-block;width:11px;height:11px;background:#FCE4E4;border:1px solid #999;vertical-align:middle;margin-right:4px"></span>लाल पंक्ति = ${p.CRITICAL_DAYS} दिवस या उससे कम शेष (अत्यावश्यक)</div>
+    <div style="text-align:right;font-size:11.5px;margin-top:22px"><b>पुलिस अधीक्षक</b>,<br>डीडवाना-कुचामन।</div>
+    <div style="font-size:10px;color:#444;margin-top:16px;border-top:1px solid #999;padding-top:6px">
+      प्रतिलिपि निम्न को सूचनार्थ एवं संबंधित थानाधिकारी से पालना करवाने हेतु प्रेषित —
+      <ol style="margin:4px 0 0 18px;padding:0">${p.circlesInvolved.map(c=>`<li>वृत्ताधिकारी, ${c} वृत्त, डीडवाना-कुचामन।</li>`).join('')}</ol>
+    </div>`;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait', unit:'pt', format:'a4'});
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginX = 34, marginY = 28;
+  const availW = pageW - marginX*2;
+  const availH = pageH - marginY*2;
+
+  if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
+
+  for(let pg=0; pg<chunks.length; pg++){
+    const rowsHtml = chunks[pg].map((o,i)=>deadlineRowHtml(o,i)).join('');
+    const isFirst = pg===0, isLast = pg===chunks.length-1;
+    const pageHtml = `<div style="font-family:'Hind','Tiro Devanagari Hindi',Arial,sans-serif;color:#101828;font-size:11px;line-height:1.4">
+      ${isFirst ? headerHtml : ''}
+      <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:6px">${tableHeadHtml}<tbody>${rowsHtml}</tbody></table>
+      ${isLast ? footerHtml : ''}
+    </div>`;
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;left:-99999px;top:0;width:760px;background:#FFFFFF;padding:16px;';
+    wrap.innerHTML = resolvePrintVarsHTML(pageHtml);
+    document.body.appendChild(wrap);
+    try{
+      await new Promise(res=>requestAnimationFrame(()=>requestAnimationFrame(res)));
+      const canvas = await html2canvas(wrap, {scale:2, backgroundColor:'#ffffff'});
+      const scale = Math.min(availW / canvas.width, availH / canvas.height);
+      const imgW = canvas.width * scale;
+      const imgH = canvas.height * scale;
+      const offsetX = marginX + (availW - imgW) / 2;
+      const offsetY = marginY;
+      if(pg>0) doc.addPage();
+      doc.addImage(canvas.toDataURL('image/png',1.0), 'PNG', offsetX, offsetY, imgW, imgH);
+    } finally {
+      document.body.removeChild(wrap);
+    }
+  }
+
+  doc.save(`nikat-seema-patra-${p.dateStr.replace(/\./g,'')}.pdf`);
+  toast('✅ पत्र (PDF) डाउनलोड हो गया');
 }
 
 // ============================================================
@@ -10043,12 +10144,13 @@ function awFmtDate(d){
 }
 
 // एक थाने हेतु पूर्ण पत्र का HTML (A4 पोर्ट्रेट, राजस्थान पुलिस पत्र प्रारूप, Hind/Tiro Devanagari फॉन्ट)
-function awBuildLetterHTML(ps, alerts, month, year, cumulative){
+function awBuildLetterHTML(ps, alerts, month, year, serialNo){
   const hi = ENG2HI_PS[ps] || ps;
   const circle = dispCircleOf(ps);
   const psEmail = AW_PS_EMAIL[ps] || {desig:'थानाधिकारी, '+hi, email:'-'};
   const coEmail = AW_CIRCLE_EMAIL[circle] || null;
-  const periodLabel = cumulative ? `${MONTHS[1]}–${MONTHS[month]} ${year}` : `${MONTHS[month]} ${year}`;
+  const periodLabel = `${MONTHS[1]}–${MONTHS[month]} ${year}`;
+  const refNo = `डीड.-कुचा/अ.शा./SPL/${serialNo}/${year}`;
 
   let actRows = '';
   (alerts[ps]||[]).forEach(a=>{
@@ -10069,157 +10171,150 @@ function awBuildLetterHTML(ps, alerts, month, year, cumulative){
       <td style="padding:4px 8px;border:1px solid #999;text-align:center;font-weight:700">${s.compPct.toFixed(2)}%</td></tr>`;
   }
 
+  const MAX_ROWS = 10; // पेज पर स्थान बनाए रखने हेतु — शेष की गिनती फुटनोट में
   function nearDeadlineTable(limit){
-    const rows = awStationNearDeadline(ps, limit);
-    if(!rows.length) return `<div style="font-size:12px;color:#555;margin:4px 0 10px">कोई प्रकरण ${limit} दिवस सीमा से 15 दिवस पूर्व की स्थिति में नहीं है।</div>`;
-    let t = `<table style="width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:10px"><thead><tr style="background:#1E2A45;color:#fff">
-      <th style="padding:4px 6px;border:1px solid #999">FIR नंबर</th><th style="padding:4px 6px;border:1px solid #999">धारा</th>
-      <th style="padding:4px 6px;border:1px solid #999">अनुसंधान अधिकारी</th><th style="padding:4px 6px;border:1px solid #999">पंजीयन दिनांक</th>
-      <th style="padding:4px 6px;border:1px solid #999">पेंडिंग दिन</th><th style="padding:4px 6px;border:1px solid #999">शेष दिन</th></tr></thead><tbody>`;
+    const all = awStationNearDeadline(ps, limit);
+    if(!all.length) return `<div style="font-size:11.5px;color:#555;margin:3px 0 8px">कोई प्रकरण ${limit} दिवस सीमा से 15 दिवस पूर्व की स्थिति में नहीं है।</div>`;
+    const rows = all.slice(0, MAX_ROWS);
+    let t = `<table style="width:100%;border-collapse:collapse;font-size:10.8px;margin-bottom:6px"><thead><tr style="background:#1E2A45;color:#fff">
+      <th style="padding:3px 5px;border:1px solid #999">FIR नंबर</th><th style="padding:3px 5px;border:1px solid #999">धारा</th>
+      <th style="padding:3px 5px;border:1px solid #999">अनुसंधान अधिकारी</th><th style="padding:3px 5px;border:1px solid #999">पंजीयन दिनांक</th>
+      <th style="padding:3px 5px;border:1px solid #999">पेंडिंग दिन</th><th style="padding:3px 5px;border:1px solid #999">शेष दिन</th></tr></thead><tbody>`;
     rows.forEach(r=>{
-      t += `<tr><td style="padding:3px 6px;border:1px solid #999">${escHtml(String(r.fir||'-'))}</td>
-        <td style="padding:3px 6px;border:1px solid #999">${escHtml(String(r.section||'-'))}</td>
-        <td style="padding:3px 6px;border:1px solid #999">${escHtml(String(r.io||'-'))}</td>
-        <td style="padding:3px 6px;border:1px solid #999">${escHtml(String(r.reg||'-'))}</td>
-        <td style="padding:3px 6px;border:1px solid #999;text-align:center;color:#B45309;font-weight:700">${r.rd}</td>
-        <td style="padding:3px 6px;border:1px solid #999;text-align:center;color:#B71C1C;font-weight:700">${Math.max(0, limit-r.rd)}</td></tr>`;
+      t += `<tr><td style="padding:2px 5px;border:1px solid #999">${escHtml(String(r.fir||'-'))}</td>
+        <td style="padding:2px 5px;border:1px solid #999">${escHtml(String(r.section||'-'))}</td>
+        <td style="padding:2px 5px;border:1px solid #999">${escHtml(String(r.io||'-'))}</td>
+        <td style="padding:2px 5px;border:1px solid #999">${escHtml(String(r.reg||'-'))}</td>
+        <td style="padding:2px 5px;border:1px solid #999;text-align:center;color:#B45309;font-weight:700">${r.rd}</td>
+        <td style="padding:2px 5px;border:1px solid #999;text-align:center;color:#B71C1C;font-weight:700">${Math.max(0, limit-r.rd)}</td></tr>`;
     });
     t += `</tbody></table>`;
+    if(all.length > MAX_ROWS) t += `<div style="font-size:10.5px;color:#7C2D12;margin:-2px 0 6px">...तथा ${all.length-MAX_ROWS} अन्य प्रकरण (पूर्ण सूची हेतु पोर्टल का 60/90 दिवस पेज देखें)</div>`;
     return t;
   }
 
   return `
-  <div style="font-family:'Hind','Tiro Devanagari Hindi',Arial,sans-serif;color:#101828;font-size:13px;line-height:1.55">
-    <div style="text-align:center;border-bottom:2.5px solid #1E2A45;padding-bottom:8px;margin-bottom:14px">
-      <div style="font-size:15px;font-weight:700;color:#1E2A45">कार्यालय पुलिस अधीक्षक, जिला डीडवाना-कुचामन (राजस्थान)</div>
-      <div style="font-size:11.5px;color:#555">शाखा: सांख्यिकी शाखा</div>
+  <div style="font-family:'Hind','Tiro Devanagari Hindi',Arial,sans-serif;color:#101828;font-size:12px;line-height:1.42">
+    <div style="text-align:center;border-bottom:2.5px solid #1E2A45;padding-bottom:6px;margin-bottom:10px">
+      <div style="font-size:14px;font-weight:700;color:#1E2A45">कार्यालय पुलिस अधीक्षक, जिला डीडवाना-कुचामन (राजस्थान)</div>
+      <div style="font-size:10.5px;color:#555">शाखा: सांख्यिकी शाखा</div>
     </div>
-    <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:10px">
-      <div>क्रमांक: सांख्यिकी/आबकारी-जुआ-आर्म्स-NDPS/${new Date().getFullYear()}/________</div>
+    <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:8px">
+      <div>क्रमांक: ${refNo}</div>
       <div>दिनांक: ${awFmtDate()}</div>
     </div>
-    <div style="margin-bottom:10px;font-size:13px">
-      <b>सेवा में,</b><br>
-      श्रीमान ${psEmail.desig}<br>
-      जिला डीडवाना-कुचामन<br>
-      ${psEmail.email!=='-' ? `<span style="color:#555;font-size:11.5px">(ईमेल: ${psEmail.email})</span><br>`:''}
+    <div style="margin-bottom:8px;font-size:12px">
+      श्रीमान ${psEmail.desig},<br>
+      जिला डीडवाना-कुचामन।<br>
+      ${psEmail.email!=='-' ? `<span style="color:#555;font-size:10.5px">(ईमेल: ${psEmail.email})</span>`:''}
     </div>
-    ${coEmail ? `<div style="margin-bottom:10px;font-size:12.5px"><b>प्रतिलिपि सूचनार्थ एवं आवश्यक कार्यवाही हेतु:</b> श्रीमान ${coEmail.desig} <span style="color:#555;font-size:11px">(ईमेल: ${coEmail.email})</span></div>`:''}
-    <div style="margin-bottom:10px;font-size:13px">
+    <div style="margin-bottom:8px;font-size:12px">
       <b>विषय: थाना ${hi} में आबकारी/जुआ/आर्म्स/NDPS एक्ट में गत वर्ष की तुलना में कम कार्यवाही एवं 60/90 दिवस पेंडेंसी की स्थिति के संबंध में।</b>
     </div>
-    <div style="margin-bottom:10px;font-size:12.8px;text-align:justify">
-      उपर्युक्त विषयान्तर्गत लेख है कि सांख्यिकी शाखा द्वारा किए गए विश्लेषण अनुसार आपके थाना क्षेत्र में अवधि <b>${periodLabel}</b> में निम्नलिखित अधिनियम(अधिनियमों) में गत वर्ष की समान अवधि की तुलना में कार्यवाही कम पाई गई है:
+    <div style="margin-bottom:8px;font-size:11.8px;text-align:justify">
+      उपर्युक्त विषयान्तर्गत लेख है कि सांख्यिकी शाखा द्वारा किए गए विश्लेषण अनुसार आपके थाना क्षेत्र में अवधि जनवरी–<b>${periodLabel}</b> (गत वर्ष की समान अवधि जनवरी–${MONTHS[month]} ${year-1} की तुलना में) निम्नलिखित अधिनियम(अधिनियमों) में कार्यवाही कम पाई गई है:
     </div>
-    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px">
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px">
       <thead><tr style="background:#7B1E3A;color:#fff">
-        <th style="padding:4px 8px;border:1px solid #999">अधिनियम</th>
-        <th style="padding:4px 8px;border:1px solid #999">इस वर्ष (${year})</th>
-        <th style="padding:4px 8px;border:1px solid #999">गत वर्ष (${year-1})</th>
-        <th style="padding:4px 8px;border:1px solid #999">कमी</th>
+        <th style="padding:3px 6px;border:1px solid #999">अधिनियम</th>
+        <th style="padding:3px 6px;border:1px solid #999">इस वर्ष (${year})</th>
+        <th style="padding:3px 6px;border:1px solid #999">गत वर्ष (${year-1})</th>
+        <th style="padding:3px 6px;border:1px solid #999">कमी</th>
       </tr></thead>
       <tbody>${actRows}</tbody>
     </table>
 
-    <div style="margin-bottom:6px;font-size:13px"><b>2. 60/90 दिवस निस्तारण की वर्तमान स्थिति:</b></div>
-    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px">
+    <div style="margin-bottom:5px;font-size:12px"><b>2. 60/90 दिवस निस्तारण की वर्तमान स्थिति:</b></div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px">
       <thead><tr style="background:#1E2A45;color:#fff">
-        <th style="padding:4px 8px;border:1px solid #999">श्रेणी</th>
-        <th style="padding:4px 8px;border:1px solid #999">कुल प्रकरण</th>
-        <th style="padding:4px 8px;border:1px solid #999">समय पर निस्तारित</th>
-        <th style="padding:4px 8px;border:1px solid #999">देरी से निस्तारित</th>
-        <th style="padding:4px 8px;border:1px solid #999">वर्तमान पेंडिंग</th>
-        <th style="padding:4px 8px;border:1px solid #999">अनुपालन %</th>
+        <th style="padding:3px 6px;border:1px solid #999">श्रेणी</th>
+        <th style="padding:3px 6px;border:1px solid #999">कुल प्रकरण</th>
+        <th style="padding:3px 6px;border:1px solid #999">समय पर निस्तारित</th>
+        <th style="padding:3px 6px;border:1px solid #999">देरी से निस्तारित</th>
+        <th style="padding:3px 6px;border:1px solid #999">वर्तमान पेंडिंग</th>
+        <th style="padding:3px 6px;border:1px solid #999">अनुपालन %</th>
       </tr></thead>
       <tbody>${pendRowHtml('60 दिवस श्रेणी', s60)}${pendRowHtml('90 दिवस श्रेणी', s90)}</tbody>
     </table>
 
-    <div style="margin-bottom:6px;font-size:13px"><b>3. समय-सीमा पूर्ण होने से पूर्व 15 दिवस के भीतर वाले प्रकरण (तत्काल ध्यान अपेक्षित):</b></div>
-    <div style="margin-bottom:4px;font-size:12.3px"><b>(अ) 60 दिवस श्रेणी:</b></div>
+    <div style="margin-bottom:4px;font-size:12px"><b>3. समय-सीमा पूर्ण होने से पूर्व 15 दिवस के भीतर वाले प्रकरण (तत्काल ध्यान अपेक्षित):</b></div>
+    <div style="margin-bottom:3px;font-size:11.3px"><b>(अ) 60 दिवस श्रेणी:</b></div>
     ${nearDeadlineTable(60)}
-    <div style="margin-bottom:4px;font-size:12.3px"><b>(ब) 90 दिवस श्रेणी:</b></div>
+    <div style="margin-bottom:3px;font-size:11.3px"><b>(ब) 90 दिवस श्रेणी:</b></div>
     ${nearDeadlineTable(90)}
 
-    <div style="margin-top:12px;font-size:12.8px;text-align:justify">
+    <div style="margin-top:8px;font-size:11.8px;text-align:justify">
       अतः आपको निर्देशित किया जाता है कि उपरोक्त अधिनियमों में अधिक से अधिक प्रभावी कार्यवाही सुनिश्चित करें एवं उपरोक्त सूचीबद्ध 60/90 दिवस सीमा वाले प्रकरणों का समयावधि पूर्ण होने से पूर्व नियमानुसार निस्तारण सुनिश्चित करते हुए अनुपालन रिपोर्ट सांख्यिकी शाखा को शीघ्र प्रेषित करें।
     </div>
 
-    <div style="margin-top:30px;font-size:13px">
-      भवदीय,<br><br><br>
+    <div style="margin-top:22px;font-size:12px;text-align:right">
       <b>पुलिस अधीक्षक</b><br>जिला डीडवाना-कुचामन
     </div>
+
+    ${coEmail ? `<div style="margin-top:16px;font-size:11px;border-top:1px solid #999;padding-top:6px">
+      <b>प्रतिलिपि सूचनार्थ एवं आवश्यक कार्यवाही हेतु:</b><br>
+      श्रीमान ${coEmail.desig} <span style="color:#555">(ईमेल: ${coEmail.email})</span>
+    </div>` : ''}
   </div>`;
 }
 
-// चयनित माह/वर्ष के आधार पर सभी कम-कार्यवाही वाले थानों के लिए एक ही PDF में (प्रति थाना एक पेज) पत्र तैयार करता है
+// चयनित माह/वर्ष के लिए सभी कम-कार्यवाही वाले थानों के लिए एक ही PDF में (प्रति थाना एक पेज,
+// पूरा पत्र एक ही पेज में समाहित — नीचे से कटने से बचाव हेतु स्केल-टू-फिट) पत्र तैयार करता है
 async function awGenerateLetters(){
   const statusEl = document.getElementById('aw-letters-status');
   const month = Number(document.getElementById('aw-month').value);
   const year = Number(document.getElementById('aw-year').value);
-  const cumEl = document.getElementById('aw-cumulative');
-  const cumulative = cumEl ? cumEl.checked : true;
   if(!month || !year){ toast('कृपया पहले माह व वर्ष चुनें'); return; }
   if(!RAW || !RAW.length){ toast('SAS Export डेटा उपलब्ध नहीं'); return; }
   if(!window.jspdf || !window.jspdf.jsPDF){ toast('PDF लाइब्रेरी लोड नहीं हो पाई'); return; }
   if(typeof html2canvas==='undefined'){ toast('इमेज लाइब्रेरी लोड नहीं हो पाई — इंटरनेट कनेक्शन जांचें'); return; }
 
-  const {byPs} = awComputeAlerts(month, year, cumulative);
+  // चयनित माह तक — गत वर्ष के भी जनवरी से चयनित माह तक — सदैव संचयी तुलना (checkbox की परवाह किए बिना)
+  const {byPs} = awComputeAlerts(month, year, true);
   const psList = Object.keys(byPs).sort();
   if(!psList.length){ if(statusEl) statusEl.textContent = '🟢 चयनित अवधि में किसी भी थाने में कम कार्यवाही नहीं पाई गई — पत्र जारी करने की आवश्यकता नहीं।'; return; }
 
-  if(statusEl) statusEl.textContent = `⏳ ${psList.length} थाना(थानों) हेतु पत्र तैयार हो रहे हैं...`;
+  if(statusEl) statusEl.textContent = `⏳ ${psList.length} थाना(थानों) हेतु अलग-अलग पत्र (PDF) तैयार हो रहे हैं...`;
   toast('⏳ पत्र (PDF) तैयार हो रहे हैं...');
 
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({orientation:'portrait', unit:'pt', format:'a4'});
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
   const marginX = 34, marginY = 28;
+  const periodTag = `जन-${MONTHS[month]}-${year}`;
 
   if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
 
   for(let i=0;i<psList.length;i++){
     const ps = psList[i];
-    const html = awBuildLetterHTML(ps, byPs, month, year, cumulative);
+    const html = awBuildLetterHTML(ps, byPs, month, year, i+1);
     const wrap = document.createElement('div');
-    wrap.style.cssText = 'position:fixed;left:-99999px;top:0;width:760px;background:#FFFFFF;padding:18px;';
+    wrap.style.cssText = 'position:fixed;left:-99999px;top:0;width:760px;background:#FFFFFF;padding:16px;';
     wrap.innerHTML = resolvePrintVarsHTML(html);
     document.body.appendChild(wrap);
     try{
       await new Promise(res=>requestAnimationFrame(()=>requestAnimationFrame(res)));
       const canvas = await html2canvas(wrap, {scale:2, backgroundColor:'#ffffff'});
+      // हर थाने का पत्र अपनी स्वतंत्र PDF फाइल में — पूरा पत्र एक ही पेज में समाहित (स्केल-टू-फिट)
+      const doc = new jsPDF({orientation:'portrait', unit:'pt', format:'a4'});
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
       const availW = pageW - marginX*2;
       const availH = pageH - marginY*2;
-      const scale = availW / canvas.width;
-      const imgW = availW;
-      const pageSliceHeightPx = Math.max(50, Math.floor(availH / scale));
-      let renderedPx = 0;
-      let firstSliceOfLetter = true;
-      while(renderedPx < canvas.height){
-        const thisSlicePx = Math.min(pageSliceHeightPx, canvas.height - renderedPx);
-        const sliceCanvas = document.createElement('canvas');
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = thisSlicePx;
-        const sctx = sliceCanvas.getContext('2d');
-        sctx.fillStyle = '#ffffff';
-        sctx.fillRect(0,0,sliceCanvas.width, sliceCanvas.height);
-        sctx.drawImage(canvas, 0, renderedPx, canvas.width, thisSlicePx, 0, 0, canvas.width, thisSlicePx);
-        const sliceImgH = thisSlicePx * scale;
-        if(!(i===0 && firstSliceOfLetter)) doc.addPage();
-        doc.addImage(sliceCanvas.toDataURL('image/png',1.0), 'PNG', marginX, marginY, imgW, sliceImgH);
-        renderedPx += thisSlicePx;
-        firstSliceOfLetter = false;
-      }
+      const scale = Math.min(availW / canvas.width, availH / canvas.height);
+      const imgW = canvas.width * scale;
+      const imgH = canvas.height * scale;
+      const offsetX = marginX + (availW - imgW) / 2;
+      const offsetY = marginY;
+      doc.addImage(canvas.toDataURL('image/png',1.0), 'PNG', offsetX, offsetY, imgW, imgH);
+      const hi = ENG2HI_PS[ps] || ps;
+      doc.save(`पत्र-${hi}-${periodTag}.pdf`);
     } finally {
       document.body.removeChild(wrap);
     }
-    if(statusEl) statusEl.textContent = `⏳ ${i+1} / ${psList.length} थानों के पत्र तैयार हुए...`;
+    if(statusEl) statusEl.textContent = `⏳ ${i+1} / ${psList.length} थानों के पत्र (अलग-अलग PDF) डाउनलोड हुए...`;
+    // ब्राउज़र द्वारा एक साथ कई डाउनलोड ब्लॉक होने से बचाव हेतु थोड़ा विराम
+    await new Promise(res=>setTimeout(res, 400));
   }
 
-  const periodTag = cumulative ? `जन-${MONTHS[month]}-${year}` : `${MONTHS[month]}-${year}`;
-  doc.save(`आबकारी-जुआ-आर्म्स-NDPS-कम-कार्यवाही-पत्र-${periodTag}.pdf`);
-
-  // ईमेल संदर्भ सूची — थानाधिकारी व संबंधित वृताधिकारी, ताकि यह PDF आगे ईमेल से भेजी जा सके
   let emailLines = psList.map(ps=>{
     const hi = ENG2HI_PS[ps] || ps;
     const circle = dispCircleOf(ps);
@@ -10227,19 +10322,59 @@ async function awGenerateLetters(){
     const ce = AW_CIRCLE_EMAIL[circle];
     return `${hi}: ${pe?pe.email:'-'}${ce?(' | वृताधिकारी '+circle+': '+ce.email):''}`;
   }).join('\n');
-  if(statusEl) statusEl.innerHTML = `✅ ${psList.length} थानों के पत्र PDF में डाउनलोड हो गए (प्रति थाना एक पेज)।<br><b>ईमेल संदर्भ सूची:</b><br>` + emailLines.split('\n').map(l=>escHtml(l)).join('<br>');
-  toast('✅ पत्र PDF डाउनलोड हो गए');
+  if(statusEl) statusEl.innerHTML = `✅ ${psList.length} थानों के पत्र अलग-अलग PDF फाइलों में डाउनलोड हो गए (प्रत्येक थाने की अपनी फाइल)।<br><b>ईमेल संदर्भ सूची:</b><br>` + emailLines.split('\n').map(l=>escHtml(l)).join('<br>');
+  toast('✅ सभी पत्र अलग-अलग PDF में डाउनलोड हो गए');
 }
 
-// ============================================================
-// मेरी पेंडिंग फाइलें — अनुसंधान अधिकारी (IO) या थाना अधिकारी अपना
-// नाम/थाना चुनकर सिर्फ़ अपनी पेंडिंग फाइलें देख/डाउनलोड कर सकते हैं
-// (Generic(13) स्रोत — क्योंकि सिर्फ़ इसी में IO नाम का कॉलम होता है)
-// ============================================================
-let mpMultiSel = {io:null, ps:null};
-let mpIOSet = new Set(), mpPsSet = new Set();
-let mpLastResults = [];
-let mpSearchText = '';
+// चयनित माह/वर्ष के लिए सभी कम-कार्यवाही वाले थानों के लिए एक ही Word (.doc) फाइल में
+// (प्रति थाना एक पेज — page-break के माध्यम से) पत्र तैयार करता है
+function awGenerateLettersWord(){
+  const statusEl = document.getElementById('aw-letters-status');
+  const month = Number(document.getElementById('aw-month').value);
+  const year = Number(document.getElementById('aw-year').value);
+  if(!month || !year){ toast('कृपया पहले माह व वर्ष चुनें'); return; }
+  if(!RAW || !RAW.length){ toast('SAS Export डेटा उपलब्ध नहीं'); return; }
+
+  const {byPs} = awComputeAlerts(month, year, true);
+  const psList = Object.keys(byPs).sort();
+  if(!psList.length){ if(statusEl) statusEl.textContent = '🟢 चयनित अवधि में किसी भी थाने में कम कार्यवाही नहीं पाई गई — पत्र जारी करने की आवश्यकता नहीं।'; return; }
+
+  const lettersHtml = psList.map((ps,i)=>
+    `<div style="${i>0?'page-break-before:always;':''}padding:0.4in;">${resolvePrintVarsHTML(awBuildLetterHTML(ps, byPs, month, year, i+1))}</div>`
+  ).join('');
+
+  const html = `<!DOCTYPE html>
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head><meta charset='utf-8'>
+<style>
+  @page{ margin:0.6in; }
+  body{font-family:'Mangal','Nirmala UI','Hind',sans-serif; color:#101828;}
+  table{border-collapse:collapse;}
+</style>
+</head>
+<body>${lettersHtml}</body>
+</html>`;
+
+  const periodTag = `जन-${MONTHS[month]}-${year}`;
+  const blob = new Blob(['\ufeff', html], {type:'application/msword'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `आबकारी-जुआ-आर्म्स-NDPS-कम-कार्यवाही-पत्र-${periodTag}.doc`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href), 60000);
+
+  let emailLines = psList.map(ps=>{
+    const hi = ENG2HI_PS[ps] || ps;
+    const circle = dispCircleOf(ps);
+    const pe = AW_PS_EMAIL[ps];
+    const ce = AW_CIRCLE_EMAIL[circle];
+    return `${hi}: ${pe?pe.email:'-'}${ce?(' | वृताधिकारी '+circle+': '+ce.email):''}`;
+  }).join('\n');
+  if(statusEl) statusEl.innerHTML = `✅ ${psList.length} थानों के पत्र Word में डाउनलोड हो गए (प्रति थाना एक पेज)।<br><b>ईमेल संदर्भ सूची:</b><br>` + emailLines.split('\n').map(l=>escHtml(l)).join('<br>');
+  toast('✅ पत्र Word डाउनलोड हो गए');
+}
 
 function mpAllPendingRows(){
   // 60 व 90 दोनों बकेट मिलाकर सभी पेंडिंग रिकॉर्ड (प्रत्येक रिकॉर्ड पर उसकी बकेट limit भी टैग करें ताकि सही IO रैंक निकाली जा सके)

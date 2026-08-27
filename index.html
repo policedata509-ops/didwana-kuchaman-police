@@ -1148,6 +1148,8 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
   <button data-pg="district" onclick="adminGo('district')">📊 जिला योग (एडमिन)</button>
   <button data-pg="monitor" onclick="adminGo('monitor')">📶 सूचना मॉनिटरिंग</button>
   <button data-pg="actWatch" onclick="go('actWatch')">⚖️ आबकारी/जुआ/आर्म्स/NDPS निगरानी</button>
+  <button data-pg="perfMonitor" onclick="adminGo('perfMonitor')">🎯 परफॉर्मेंस मॉनिटरिंग (रैंक ट्रेंड)</button>
+  <button data-pg="dataQuality" onclick="adminGo('dataQuality')">🔍 डेटा गुणवत्ता जाँच</button>
   <button data-pg="settings" onclick="adminGo('settings')">⚙️ सेटिंग्स</button>
   <button data-pg="disp60" onclick="go('disp60')">⏱️ 60 दिवस निस्तारण</button>
   <button data-pg="disp90" onclick="go('disp90')">⏱️ 90 दिवस निस्तारण</button>
@@ -1230,6 +1232,16 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
         <div class="ni" style="background:linear-gradient(135deg,#6A1B9A,#4A148C)">📉</div>
         <h3>पेंडेंसी रैंकिंग</h3>
         <p>थानावार पेंडेंसी प्रतिशत रैंकिंग — सर्वाधिक लंबित प्रकरणों की पहचान</p>
+      </div>
+      <div class="nc" onclick="adminGo('perfMonitor')">
+        <div class="ni" style="background:linear-gradient(135deg,#B45309,#7C2D12)">🎯</div>
+        <h3>परफॉर्मेंस मॉनिटरिंग</h3>
+        <p>हर हेड में थाना/वृत्त की रैंकिंग, पिछले 30 दिनों में किसकी रैंक सुधरी/गिरी — पर्यवेक्षण हेतु</p>
+      </div>
+      <div class="nc" onclick="adminGo('dataQuality')">
+        <div class="ni" style="background:linear-gradient(135deg,#455A64,#263238)">🔍</div>
+        <h3>डेटा गुणवत्ता जाँच</h3>
+        <p>डुप्लीकेट FIR, रिक्त IO नाम, असंभव तिथियाँ जैसी सामान्य डेटा-त्रुटियाँ स्वतः पकड़ें</p>
       </div>
       <div class="nc" onclick="go('univsearch')">
         <div class="ni" style="background:linear-gradient(135deg,#37474F,#263238)">🔎</div>
@@ -2604,6 +2616,56 @@ function reply(obj) {
   </div>
 </div>
 
+<!-- ============================================================ परफॉर्मेंस मॉनिटरिंग (30-दिवसीय रैंक ट्रेंड) ============================================================ -->
+<div class="pg" id="perfMonitor">
+  <div class="banner" style="background:linear-gradient(180deg,#B45309,#7C2D12)">
+    <div class="b-icon">🎯</div>
+    <h1>परफॉर्मेंस मॉनिटरिंग</h1><p>हर अपराध-हेड में थाना/वृत्त की रैंकिंग एवं पिछले दिनों में रैंक सुधार/गिरावट — पर्यवेक्षण हेतु</p>
+  </div>
+  <div class="wrap">
+    <div class="intro" style="border-top-color:#B45309">
+      <b>निर्देश:</b> यह पेज प्रत्येक अपराध-हेड (IPC/BNS, SLL, महिला अत्याचार, SC/ST, POCSO, बलात्कार) में हर <b>थाना/वृत्त की अनुपालन (निस्तारण) रैंकिंग</b> दिखाता है, तथा चयनित अवधि (डिफ़ॉल्ट 30 दिन) पूर्व की स्थिति से तुलना कर बताता है कि <b>किसकी रैंक सुधरी और किसकी गिरावट आई</b> — तुलना केवल उन प्रकरणों के स्थिर समूह पर आधारित है जो कटऑफ तिथि तक दर्ज हो चुके थे, ताकि नए प्रकरण तुलना को प्रभावित न करें।
+    </div>
+    <div class="ctx-bar">
+      <div class="ctx-grid">
+        <div><label>हेड (श्रेणी) *</label><select id="pm-head"></select></div>
+        <div><label>समूह *</label><select id="pm-group"><option value="ps">थानावार</option><option value="circle">वृत्तवार</option></select></div>
+        <div><label>तुलना अवधि *</label><select id="pm-window">
+          <option value="15">पिछले 15 दिन</option>
+          <option value="30" selected>पिछले 30 दिन</option>
+          <option value="45">पिछले 45 दिन</option>
+          <option value="60">पिछले 60 दिन</option>
+          <option value="90">पिछले 90 दिन</option>
+        </select></div>
+      </div>
+      <div style="margin-top:12px">
+        <button class="btn-fill" style="background:linear-gradient(135deg,#B45309,#7C2D12)" onclick="renderPerfMonitor()">🔍 देखें</button>
+        <button class="btn-fill sm" style="background:linear-gradient(135deg,#37474F,#1B262C)" onclick="downloadPerfMonitor()">📥 रिपोर्ट डाउनलोड करें (Excel)</button>
+        <button class="btn-ghost" onclick="window.print()">🖨️ पेज प्रिंट करें</button>
+      </div>
+    </div>
+    <div id="pm-result" style="margin-top:16px"></div>
+  </div>
+</div>
+
+<!-- ============================================================ डेटा गुणवत्ता जाँच ============================================================ -->
+<div class="pg" id="dataQuality">
+  <div class="banner" style="background:linear-gradient(180deg,#455A64,#263238)">
+    <div class="b-icon">🔍</div>
+    <h1>डेटा गुणवत्ता जाँच</h1><p>डुप्लीकेट FIR, रिक्त IO नाम, असंभव तिथियाँ जैसी सामान्य डेटा-त्रुटियाँ स्वतः पकड़ें</p>
+  </div>
+  <div class="wrap">
+    <div class="intro" style="border-top-color:#455A64">
+      <b>निर्देश:</b> पोर्टल की समस्त रैंकिंग व अनुपालन गणनाएँ स्रोत डेटा (SAS Export / Generic 60-90 दिवस) की शुद्धता पर निर्भर हैं। यह पेज सामान्य डेटा-एंट्री त्रुटियाँ स्वतः पकड़ता है ताकि थाना-स्तर पर सुधार कर आँकड़े अधिक भरोसेमंद बनाए जा सकें।
+    </div>
+    <div style="margin-bottom:12px;">
+      <button class="btn-fill" style="background:linear-gradient(135deg,#455A64,#263238)" onclick="renderDataQuality()">🔄 पुनः जाँचें</button>
+      <button class="btn-fill sm" style="background:linear-gradient(135deg,#37474F,#1B262C)" onclick="dqDownloadAll()">📥 पूर्ण रिपोर्ट डाउनलोड करें (Excel)</button>
+    </div>
+    <div id="dq-result"></div>
+  </div>
+</div>
+
 <!-- ============================================================ मेरी पेंडिंग फाइलें (IO/थाना अधिकारी) ============================================================ -->
 <div class="pg" id="myPending">
   <div class="banner" style="background:linear-gradient(180deg,#00695C,#00332C)">
@@ -3482,6 +3544,8 @@ function go(id){
   if(id==='settings' && typeof renderCustomPagesSettings==='function') renderCustomPagesSettings();
   if(id==='monitor' && typeof monInitSelects==='function') monInitSelects();
   if(id==='actWatch' && typeof awInitSelects==='function'){ awInitSelects(); if(typeof renderActWatch==='function') renderActWatch(); }
+  if(id==='perfMonitor' && typeof pmInitSelects==='function'){ pmInitSelects(); if(typeof renderPerfMonitor==='function') renderPerfMonitor(); }
+  if(id==='dataQuality' && typeof renderDataQuality==='function'){ renderDataQuality(); }
   if(id==='myPending' && typeof ensureMyPendingLoaded==='function') ensureMyPendingLoaded();
   if(id==='wantedReg' && typeof ensureWantedRegLoaded==='function') ensureWantedRegLoaded();
 }
@@ -3490,7 +3554,7 @@ function go(id){
 // INIT SELECTS
 // ============================================================
 function initSelects(){
-  const years=[]; for(let y=CY+1;y>=CY-3;y--) years.push(y);
+  const years=[]; for(let y=CY+3;y>=CY-3;y--) years.push(y);
   ['ap','sv','mk'].forEach(pre=>{
     const ts=document.getElementById(pre+'-thana');
     const ys=document.getElementById(pre+'-year');
@@ -6603,15 +6667,25 @@ function ioRankHTML(limit){
 function renderHomeDeadlineAlert(){
   const el = document.getElementById('homeDeadlineAlert');
   if(!el) return;
-  const WARN_DAYS = 15;
+  const WARN_DAYS = 15, CRIT_DAYS = 5;
   const source = (GEN && GEN.length) ? 'generic' : 'automerge';
-  let n60=0, n90=0;
+  let rows60=[], rows90=[];
   try{
-    n60 = buildRowsForSource(source, 60, null).filter(r=>!r.disposed && r.rd!=null && r.rd<=60 && r.rd>=60-WARN_DAYS).length;
-    n90 = buildRowsForSource(source, 90, null).filter(r=>!r.disposed && r.rd!=null && r.rd<=90 && r.rd>=90-WARN_DAYS).length;
+    rows60 = buildRowsForSource(source, 60, null).filter(r=>!r.disposed && r.rd!=null && r.rd<=60 && r.rd>=60-WARN_DAYS);
+    rows90 = buildRowsForSource(source, 90, null).filter(r=>!r.disposed && r.rd!=null && r.rd<=90 && r.rd>=90-WARN_DAYS);
   }catch(e){ el.innerHTML=''; return; }
+  const n60 = rows60.length, n90 = rows90.length;
   if(!n60 && !n90){ el.innerHTML=''; return; }
   const limsPresent = [n60?60:null, n90?90:null].filter(Boolean);
+
+  // सर्वाधिक अत्यावश्यक (≤5 दिन शेष) थाना — एक नज़र में पता चले कि सबसे पहले किस थाने पर ध्यान देना है
+  const critByPS = {};
+  [...rows60.map(r=>({...r,limit:60})), ...rows90.map(r=>({...r,limit:90}))].forEach(r=>{
+    if((r.limit - r.rd) <= CRIT_DAYS){ critByPS[r.ps] = (critByPS[r.ps]||0)+1; }
+  });
+  const topCrit = Object.entries(critByPS).sort((a,b)=>b[1]-a[1])[0];
+  const critLine = topCrit ? `<div style="margin-top:4px;color:#B71C1C;font-weight:700;">⚠ सर्वाधिक अत्यावश्यक: ${ENG2HI_PS[topCrit[0]]||topCrit[0]} थाने में ${topCrit[1]} प्रकरण मात्र ${CRIT_DAYS} दिन या उससे कम में सीमा पूर्ण कर रहे हैं</div>` : '';
+
   el.innerHTML = `<div style="background:#FFF3E0;border:1.5px solid #F59E0B;border-radius:12px;padding:12px 14px;margin-bottom:16px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
     <div style="font-size:20px;">⏰</div>
     <div style="flex:1;min-width:220px;">
@@ -6619,10 +6693,12 @@ function renderHomeDeadlineAlert(){
       ${n60?`<span style="cursor:pointer;color:#B45309;font-weight:700;text-decoration:underline;" onclick="go('disp60')">${n60} प्रकरण अगले ${WARN_DAYS} दिनों में 60-दिवस सीमा पूरी करेंगे</span>`:''}
       ${n60&&n90?' · ':''}
       ${n90?`<span style="cursor:pointer;color:#B45309;font-weight:700;text-decoration:underline;" onclick="go('disp90')">${n90} प्रकरण अगले ${WARN_DAYS} दिनों में 90-दिवस सीमा पूरी करेंगे</span>`:''}
+      ${critLine}
       <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn-fill sm" style="background:#B45309;" onclick="downloadNearingDeadlineList(${JSON.stringify(limsPresent)})">📥 सूची डाउनलोड</button>
+        <button class="btn-fill sm" style="background:#B45309;" onclick="downloadNearingDeadlineList(${JSON.stringify(limsPresent)})">📥 सूची डाउनलोड (थाना/वृत्त-वार)</button>
         <button class="btn-fill sm" style="background:#7C2D12;" onclick="generateDeadlineLetterDoc(${JSON.stringify(limsPresent)})">📄 पत्र (Word) बनाएं</button>
         <button class="btn-fill sm" style="background:#B45309;" onclick="generateDeadlineLetterPDF(${JSON.stringify(limsPresent)})">📕 पत्र (PDF) बनाएं</button>
+        <button class="btn-fill sm" style="background:linear-gradient(135deg,#B45309,#7C2D12)" onclick="adminGo('perfMonitor')">🎯 परफॉर्मेंस मॉनिटरिंग देखें</button>
       </div>
     </div>
   </div>`;
@@ -6634,7 +6710,7 @@ function deadlineAlertHTML(rows, limit){
   return `<div style="background:#FFF3E0;border:1.5px solid #F59E0B;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
     <b>⏰ ध्यान दें:</b> <b style="color:#B45309">${nearing.length}</b> प्रकरण अगले ${WARN_DAYS} दिनों में ${limit}-दिवस सीमा पूरी करने वाले हैं — प्राथमिकता से निस्तारण करें।
     <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn-fill sm" style="background:#B45309;" onclick="downloadNearingDeadlineList([${limit}])">📥 सूची डाउनलोड</button>
+      <button class="btn-fill sm" style="background:#B45309;" onclick="downloadNearingDeadlineList([${limit}])">📥 सूची डाउनलोड (थाना/वृत्त-वार)</button>
       <button class="btn-fill sm" style="background:#7C2D12;" onclick="generateDeadlineLetterDoc([${limit}])">📄 पत्र (Word) बनाएं</button>
       <button class="btn-fill sm" style="background:#B45309;" onclick="generateDeadlineLetterPDF([${limit}])">📕 पत्र (PDF) बनाएं</button>
     </div>
@@ -6731,19 +6807,76 @@ function getNearingDeadlineRowsGrouped(limits){
 }
 
 // ---------- निकट-सीमा (आगामी 15 दिनों में 60/90-दिवस सीमा) प्रकरणों की सूची डाउनलोड ----------
+// सुव्यवस्थित प्रारूप: सारांश + वृत्त-वार सारांश + थाना-वार सारांश + प्रत्येक सीमा(60/90) की विस्तृत सूची (IO नाम/रैंक सहित)
 function downloadNearingDeadlineList(limits){
   limits = limits && limits.length ? limits : [60,90];
-  const summaryAOA = [['सीमा (दिन)','निकट-सीमा प्रकरण (आगामी '+DEADLINE_WARN_DAYS+' दिनों में)']];
-  const sheets = [];
-  const header = ['क्र.सं','सर्किल','थाना','FIR नंबर','पंजीकरण दिनांक','धारा / Act','सीमा (दिन)','शेष दिन'];
+  const allRows = [];
+  limits.forEach(limit=> allRows.push(...getNearingDeadlineRows(limit)));
+  if(!allRows.length){ toast('⚠️ आगामी '+DEADLINE_WARN_DAYS+' दिनों में कोई निकट-सीमा प्रकरण नहीं मिला'); return; }
+  const CRIT = 5;
+  allRows.forEach(r=>{ r.remaining = r.limit - r.rd; r.critical = r.remaining <= CRIT; });
+
+  // 1) समग्र सारांश
+  const totalCritical = allRows.filter(r=>r.critical).length;
+  const summaryAOA = [
+    ['निकट-सीमा प्रकरण रिपोर्ट (आगामी '+DEADLINE_WARN_DAYS+' दिनों में 60/90-दिवस सीमा पूर्ण)'],
+    ['तैयार दिनांक', new Date().toLocaleDateString('en-IN')],
+    [],
+    ['सीमा (दिन)', 'कुल निकट-सीमा प्रकरण', `अत्यावश्यक (≤${CRIT} दिन शेष)`]
+  ];
   limits.forEach(limit=>{
-    const rows = getNearingDeadlineRows(limit).sort((a,b)=>
-      dispCircleOf(a.ps).localeCompare(dispCircleOf(b.ps)) || a.ps.localeCompare(b.ps) || (b.rd-a.rd));
-    summaryAOA.push([`${limit} दिन`, rows.length]);
-    const aoa = [header, ...rows.map((r,i)=>[i+1, dispCircleOf(r.ps), ENG2HI_PS[r.ps]||r.ps, r.fir||'-', r.reg||'-', r.section||'-', r.limit, r.limit-r.rd])];
-    sheets.push({name:`${limit} दिन (निकट-सीमा)`, aoa, colWidths:[6,14,18,16,16,26,10,10], filter:true});
+    const rl = allRows.filter(r=>r.limit===limit);
+    summaryAOA.push([`${limit} दिन`, rl.length, rl.filter(r=>r.critical).length]);
   });
-  sheets.unshift({name:'सारांश', aoa: summaryAOA, colWidths:[16,34]});
+  summaryAOA.push(['कुल', allRows.length, totalCritical]);
+
+  // 2) वृत्त-वार सारांश (सर्वाधिक बोझ वाला वृत्त सबसे ऊपर)
+  const circleAgg = {};
+  DISP_CIRCLE_ORDER.forEach(c=>{ circleAgg[c] = {circle:c}; limits.forEach(l=>circleAgg[c][l]=0); circleAgg[c].critical=0; circleAgg[c].total=0; });
+  allRows.forEach(r=>{
+    const c = dispCircleOf(r.ps);
+    if(!circleAgg[c]) circleAgg[c] = {circle:c, critical:0, total:0};
+    circleAgg[c][r.limit] = (circleAgg[c][r.limit]||0)+1;
+    circleAgg[c].critical += r.critical?1:0;
+    circleAgg[c].total++;
+  });
+  const circleHeader = ['वृत्त', ...limits.map(l=>`${l} दिन`), `अत्यावश्यक (≤${CRIT} दिन)`, 'कुल'];
+  const circleRows = Object.values(circleAgg).filter(c=>c.total>0 || DISP_CIRCLE_ORDER.includes(c.circle))
+    .sort((a,b)=>b.total-a.total)
+    .map(c=>[c.circle, ...limits.map(l=>c[l]||0), c.critical, c.total]);
+
+  // 3) थाना-वार सारांश (सर्वाधिक बोझ वाला थाना सबसे ऊपर)
+  const psAgg = {};
+  ALL_PS_EN.forEach(ps=>{ psAgg[ps] = {ps, circle:dispCircleOf(ps), critical:0, total:0}; limits.forEach(l=>psAgg[ps][l]=0); });
+  allRows.forEach(r=>{
+    if(!psAgg[r.ps]) psAgg[r.ps] = {ps:r.ps, circle:dispCircleOf(r.ps), critical:0, total:0};
+    psAgg[r.ps][r.limit] = (psAgg[r.ps][r.limit]||0)+1;
+    psAgg[r.ps].critical += r.critical?1:0;
+    psAgg[r.ps].total++;
+  });
+  const psHeader = ['थाना', 'वृत्त', ...limits.map(l=>`${l} दिन`), `अत्यावश्यक (≤${CRIT} दिन)`, 'कुल'];
+  const psRows = Object.values(psAgg).filter(p=>p.total>0)
+    .sort((a,b)=>b.total-a.total)
+    .map(p=>[ENG2HI_PS[p.ps]||p.ps, p.circle, ...limits.map(l=>p[l]||0), p.critical, p.total]);
+
+  const sheets = [
+    {name:'सारांश', aoa: summaryAOA, colWidths:[46,20,22]},
+    {name:'वृत्त-वार सूची', aoa: [circleHeader, ...circleRows], colWidths:[16, ...limits.map(()=>10), 16, 10], filter:true},
+    {name:'थाना-वार सूची', aoa: [psHeader, ...psRows], colWidths:[20,16, ...limits.map(()=>10), 16, 10], filter:true}
+  ];
+
+  // 4) प्रत्येक सीमा (60/90) की विस्तृत प्रकरण-सूची — वृत्त→थाना→शेष दिन (सबसे अत्यावश्यक पहले) क्रम में
+  const detailHeader = ['क्र.सं','वृत्त','थाना','FIR नंबर','पंजीकरण दिनांक','धारा / Act','अनुसंधान अधिकारी (IO)','IO रैंक','शेष दिन','स्थिति'];
+  limits.forEach(limit=>{
+    const rows = allRows.filter(r=>r.limit===limit).sort((a,b)=>
+      dispCircleOf(a.ps).localeCompare(dispCircleOf(b.ps)) || a.ps.localeCompare(b.ps) || a.remaining-b.remaining);
+    const aoa = [detailHeader, ...rows.map((r,i)=>[
+      i+1, dispCircleOf(r.ps), ENG2HI_PS[r.ps]||r.ps, r.fir||'-', r.reg||'-', r.section||'-',
+      r.io||'-', ioRankBadgeText(r.io, r.limit), r.remaining, r.critical?'⚠ अत्यावश्यक':'सामान्य'
+    ])];
+    sheets.push({name:`${limit} दिन - विस्तृत सूची`, aoa, colWidths:[6,14,18,16,16,24,22,14,10,14], filter:true});
+  });
+
   exportRowsToXLSX('nikat-seema-prakaran-suchi.xlsx', sheets);
 }
 
@@ -6776,7 +6909,95 @@ function buildDeadlineLetterParts(limits){
   });
 
   const refNo = `डीड.-कुचा/अ.शा./SPL/1/${today.getFullYear()}`;
-  return {limits, rows, stations, circlesInvolved, stationNamesHi, dateStr, refNo, criticalCount, rowObjs, CRITICAL_DAYS};
+
+  // थानावार व वृत्तवार 60/90 दिवस अनुपालन रैंकिंग (जिले भर की, केवल चयनित सीमा[ओं] हेतु)
+  const rankTables = {};
+  limits.forEach(lim=>{
+    const agg = aggregateDisposal(buildRowsGeneric(lim, null), lim);
+    rankTables[lim] = agg;
+  });
+
+  return {limits, rows, stations, circlesInvolved, stationNamesHi, dateStr, refNo, criticalCount, rowObjs, CRITICAL_DAYS, rankTables};
+}
+
+function compPctColor(pct){
+  if(pct>=90) return '#1B7A3D';
+  if(pct>=70) return '#B45309';
+  return '#B71C1C';
+}
+function rankMedal(r){
+  if(r==='-'||r==null) return '-';
+  if(r===1) return '🥇 '+r;
+  if(r===2) return '🥈 '+r;
+  if(r===3) return '🥉 '+r;
+  return String(r);
+}
+// थानावार व वृत्तवार रैंकिंग तालिका — आकर्षक, रंगीन, सुव्यवस्थित प्रारूप में (Word व PDF दोनों हेतु साझा)
+function rankTablesHTML(rankTables, limits){
+  let out = '';
+  limits.forEach(lim=>{
+    const agg = rankTables[lim];
+    if(!agg) return;
+    const stRanked = agg.stations.filter(s=>s.c1>0).sort((a,b)=> (a.rank==='-'?999:a.rank) - (b.rank==='-'?999:b.rank));
+    const stRows = stRanked.map((s,i)=>{
+      const bg = s.rank===1 ? '#FFF3CD' : (i%2===0 ? '#FFFFFF' : '#F3F6FB');
+      return `<tr style="background:${bg}">
+        <td style="text-align:center;font-weight:700">${rankMedal(s.rank)}</td>
+        <td>${s.hi}</td>
+        <td style="text-align:center;color:#555;font-size:9.6pt">${s.circle}</td>
+        <td style="text-align:center">${s.c1}</td>
+        <td style="text-align:center;color:#1B7A3D">${s.c2}</td>
+        <td style="text-align:center;color:#B71C1C">${s.c5+s.c3}</td>
+        <td style="text-align:center;font-weight:800;color:${compPctColor(s.compPct)}">${s.compPct.toFixed(1)}%</td>
+      </tr>`;
+    }).join('');
+    const circRanked = agg.circles.filter(c=>c.c1>0).sort((a,b)=> (a.rank==='-'?999:a.rank) - (b.rank==='-'?999:b.rank));
+    const circRows = circRanked.map((c,i)=>{
+      const bg = c.rank===1 ? '#FDE7EC' : (i%2===0 ? '#FFFFFF' : '#FBF3F5');
+      return `<tr style="background:${bg}">
+        <td style="text-align:center;font-weight:700">${rankMedal(c.rank)}</td>
+        <td>${c.circle}</td>
+        <td style="text-align:center">${c.c1}</td>
+        <td style="text-align:center;color:#1B7A3D">${c.c2}</td>
+        <td style="text-align:center;color:#B71C1C">${c.c5+c.c3}</td>
+        <td style="text-align:center;font-weight:800;color:${compPctColor(c.compPct)}">${c.compPct.toFixed(1)}%</td>
+      </tr>`;
+    }).join('');
+    out += `
+    <div style="margin:14px 0 6px;font-size:12.5pt;font-weight:800;color:#102C57;border-bottom:2px solid #102C57;padding-bottom:3px">📊 ${lim} दिवस श्रेणी — जिले में थानावार अनुपालन रैंकिंग</div>
+    <table style="width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.15)">
+      <thead><tr style="background:linear-gradient(135deg,#102C57,#1E4A8C);">
+        <th style="padding:6px 5px;border:1px solid #0C2244;color:#fff">रैंक</th>
+        <th style="padding:6px 5px;border:1px solid #0C2244;color:#fff">थाना</th>
+        <th style="padding:6px 5px;border:1px solid #0C2244;color:#fff">वृत्त</th>
+        <th style="padding:6px 5px;border:1px solid #0C2244;color:#fff">कुल</th>
+        <th style="padding:6px 5px;border:1px solid #0C2244;color:#fff">समय पर निस्तारित</th>
+        <th style="padding:6px 5px;border:1px solid #0C2244;color:#fff">विलंबित</th>
+        <th style="padding:6px 5px;border:1px solid #0C2244;color:#fff">अनुपालन %</th>
+      </tr></thead>
+      <tbody>${stRows}</tbody>
+      <tfoot><tr style="background:#E8EDF7;font-weight:800">
+        <td colspan="3" style="padding:6px 5px;border:1px solid #B4C3D7;text-align:center">जिला कुल (${lim} दिवस)</td>
+        <td style="padding:6px 5px;border:1px solid #B4C3D7;text-align:center">${agg.district.c1}</td>
+        <td style="padding:6px 5px;border:1px solid #B4C3D7;text-align:center;color:#1B7A3D">${agg.district.c2}</td>
+        <td style="padding:6px 5px;border:1px solid #B4C3D7;text-align:center;color:#B71C1C">${agg.district.c5+agg.district.c3}</td>
+        <td style="padding:6px 5px;border:1px solid #B4C3D7;text-align:center;color:${compPctColor(agg.district.compPct)}">${agg.district.compPct.toFixed(1)}%</td>
+      </tr></tfoot>
+    </table>
+    <div style="margin:10px 0 6px;font-size:12pt;font-weight:800;color:#7B1E3A;border-bottom:2px solid #7B1E3A;padding-bottom:3px">🧭 ${lim} दिवस श्रेणी — वृत्तवार अनुपालन रैंकिंग</div>
+    <table style="width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.15)">
+      <thead><tr style="background:linear-gradient(135deg,#7B1E3A,#4A1224);">
+        <th style="padding:6px 5px;border:1px solid #4A1224;color:#fff">रैंक</th>
+        <th style="padding:6px 5px;border:1px solid #4A1224;color:#fff">वृत्त</th>
+        <th style="padding:6px 5px;border:1px solid #4A1224;color:#fff">कुल</th>
+        <th style="padding:6px 5px;border:1px solid #4A1224;color:#fff">समय पर निस्तारित</th>
+        <th style="padding:6px 5px;border:1px solid #4A1224;color:#fff">विलंबित</th>
+        <th style="padding:6px 5px;border:1px solid #4A1224;color:#fff">अनुपालन %</th>
+      </tr></thead>
+      <tbody>${circRows}</tbody>
+    </table>`;
+  });
+  return out;
 }
 
 function deadlineRowHtml(o, zebraIdx){
@@ -6807,8 +7028,8 @@ function generateDeadlineLetterDoc(limits){
 <style>
   @page{ margin:0.7in; }
   body{font-family:'Mangal','Nirmala UI',sans-serif; font-size:10.5pt; line-height:1.35; color:#1a1a1a; margin:0.7in;}
-  .letterbox{border:2px solid #102C57; border-radius:6px; padding:18px 22px;}
-  .topbar{background:#102C57; height:6px; border-radius:3px 3px 0 0; margin:-18px -22px 14px -22px;}
+  .letterbox{padding:6px 4px;}
+  .topbar{background:#102C57; height:6px; margin:0 0 14px 0;}
   .hdr1{text-align:center; font-weight:bold; color:#6B7280; margin:0; font-size:10pt; letter-spacing:1px;}
   .hdr2{text-align:center; font-weight:bold; color:#102C57; font-size:16pt; margin:3px 0 0 0;}
   .hdr3{text-align:center; font-weight:bold; color:#102C57; font-size:13pt; margin:2px 0 0 0;}
@@ -6852,6 +7073,9 @@ function generateDeadlineLetterDoc(limits){
     <tbody>${bodyRows}</tbody>
   </table>
   <div class="legend"><span class="box" style="background:#FCE4E4;"></span>लाल पंक्ति = ${p.CRITICAL_DAYS} दिवस या उससे कम शेष (अत्यावश्यक)</div>
+  <div style="page-break-before:always;"></div>
+  <p style="font-weight:800;color:#102C57;font-size:12.5pt;margin:0 0 4px 0;">4. जिले में 60/90 दिवस अनुपालन रैंकिंग (थानावार व वृत्तवार)</p>
+  ${rankTablesHTML(p.rankTables, p.limits)}
   <p class="signblock"><b>&nbsp;</b><br>पुलिस अधीक्षक,<br>डीडवाना-कुचामन।</p>
   <p class="footernote">प्रतिलिपि निम्न को सूचनार्थ एवं संबंधित थानाधिकारी से पालना करवाने हेतु प्रेषित —</p>
   <ol class="footernote">
@@ -6926,14 +7150,8 @@ async function generateDeadlineLetterPDF(limits){
 
   if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
 
-  for(let pg=0; pg<chunks.length; pg++){
-    const rowsHtml = chunks[pg].map((o,i)=>deadlineRowHtml(o,i)).join('');
-    const isFirst = pg===0, isLast = pg===chunks.length-1;
-    const pageHtml = `<div style="font-family:'Hind','Tiro Devanagari Hindi',Arial,sans-serif;color:#101828;font-size:11px;line-height:1.4">
-      ${isFirst ? headerHtml : ''}
-      <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:6px">${tableHeadHtml}<tbody>${rowsHtml}</tbody></table>
-      ${isLast ? footerHtml : ''}
-    </div>`;
+  let pageCounter = 0;
+  async function renderPageHtml(pageHtml){
     const wrap = document.createElement('div');
     wrap.style.cssText = 'position:fixed;left:-99999px;top:0;width:760px;background:#FFFFFF;padding:16px;';
     wrap.innerHTML = resolvePrintVarsHTML(pageHtml);
@@ -6946,11 +7164,34 @@ async function generateDeadlineLetterPDF(limits){
       const imgH = canvas.height * scale;
       const offsetX = marginX + (availW - imgW) / 2;
       const offsetY = marginY;
-      if(pg>0) doc.addPage();
+      if(pageCounter>0) doc.addPage();
       doc.addImage(canvas.toDataURL('image/png',1.0), 'PNG', offsetX, offsetY, imgW, imgH);
+      pageCounter++;
     } finally {
       document.body.removeChild(wrap);
     }
+  }
+
+  for(let pg=0; pg<chunks.length; pg++){
+    const rowsHtml = chunks[pg].map((o,i)=>deadlineRowHtml(o,i)).join('');
+    const isFirst = pg===0;
+    const pageHtml = `<div style="font-family:'Hind','Tiro Devanagari Hindi',Arial,sans-serif;color:#101828;font-size:11px;line-height:1.4">
+      ${isFirst ? headerHtml : ''}
+      <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:6px">${tableHeadHtml}<tbody>${rowsHtml}</tbody></table>
+    </div>`;
+    await renderPageHtml(pageHtml);
+  }
+
+  // थानावार व वृत्तवार 60/90 अनुपालन रैंकिंग — प्रति सीमा एक पेज
+  for(let li=0; li<p.limits.length; li++){
+    const lim = p.limits[li];
+    const isLastPage = li===p.limits.length-1;
+    const pageHtml = `<div style="font-family:'Hind','Tiro Devanagari Hindi',Arial,sans-serif;color:#101828;font-size:11px;line-height:1.4">
+      <div style="font-weight:800;color:#102C57;font-size:14px;margin:0 0 6px 0;border-bottom:2px solid #102C57;padding-bottom:4px">4. जिले में 60/90 दिवस अनुपालन रैंकिंग (थानावार व वृत्तवार)</div>
+      ${rankTablesHTML(p.rankTables, [lim])}
+      ${isLastPage ? footerHtml : ''}
+    </div>`;
+    await renderPageHtml(pageHtml);
   }
 
   doc.save(`nikat-seema-patra-${p.dateStr.replace(/\./g,'')}.pdf`);
@@ -8128,6 +8369,387 @@ function renderHeadTable(){
     });
   });
   document.getElementById('headTableBody').innerHTML = rowsHtml || '<tr><td colspan="5" style="text-align:center;color:var(--soft);">इस चयन हेतु कोई डेटा नहीं</td></tr>';
+}
+
+/* ===================== 🎯 परफॉर्मेंस मॉनिटरिंग (30-दिवसीय रैंक ट्रेंड) ===================== */
+/* सिद्धांत: निष्पक्ष तुलना हेतु दोनों स्नैपशॉट ("आज" व "N दिन पूर्व") के लिए एक ही स्थिर समूह
+   (universe = वे प्रकरण जो कटऑफ तिथि तक दर्ज हो चुके थे) का उपयोग किया जाता है, ताकि हाल में
+   दर्ज हुए नए प्रकरण किसी थाने की "सुधार/गिरावट" गणना को गलत तरीके से प्रभावित न करें।
+   इस प्रकार निकाली गई % प्रगति केवल "पुराने बकाया प्रकरणों के निस्तारण में हुई वास्तविक प्रगति" दर्शाती है। */
+function isoDaysAgo(n){
+  const d = new Date(); d.setDate(d.getDate()-n);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+const PM_MIN_CASES = 3; // रैंकिंग हेतु न्यूनतम प्रकरण (इससे कम होने पर "अपर्याप्त डेटा")
+
+function pmGroupKey(ps, groupBy){ return groupBy==='circle' ? dispCircleOf(ps) : ps; }
+function pmGroupLabel(key, groupBy){ return groupBy==='circle' ? key : (ENG2HI_PS[key]||key); }
+
+// किसी एक हेड (या 'ALL' सभी हेड मिलाकर) के लिए थाना/वृत्त-वार निष्पादन आँकड़े
+function buildPerfStats(headKey, groupBy, windowDays){
+  const cutoff = isoDaysAgo(windowDays);
+  const heads = headKey==='ALL' ? ALL_CAT_FIELDS : [headKey];
+  const base = filterByPS(dbRecords).filter(r=> heads.some(h=>!!r[h]));
+  const groups = {};
+  base.forEach(r=>{
+    if(!r.date || r.date > isoDaysAgo(0)) return; // भविष्य/अमान्य तिथि सुरक्षा
+    if(r.date > cutoff) return; // universe में केवल वे प्रकरण जो कटऑफ तक दर्ज हो चुके थे
+    const key = pmGroupKey(r.ps, groupBy);
+    if(!groups[key]) groups[key] = {key, universe:0, disposedThen:0, disposedNow:0};
+    const g = groups[key];
+    g.universe++;
+    if(statusAsOf(r, cutoff)!=='Pending') g.disposedThen++;
+    if(r.disposal!=='Pending') g.disposedNow++;
+  });
+  const list = Object.values(groups).map(g=>{
+    g.label = pmGroupLabel(g.key, groupBy);
+    g.pendingNow = g.universe - g.disposedNow;
+    g.workDone = g.disposedNow - g.disposedThen;
+    g.eligible = g.universe >= PM_MIN_CASES;
+    g.compNow = g.universe ? g.disposedNow/g.universe*100 : 0;
+    g.compThen = g.universe ? g.disposedThen/g.universe*100 : 0;
+    return g;
+  });
+  // शून्य-डेटा वाले समूह (उस हेड में कोई प्रकरण नहीं) भी सूची में शामिल करें ताकि "कोई डेटा नहीं" स्पष्ट दिखे
+  const allKeys = groupBy==='circle' ? DISP_CIRCLE_ORDER.slice() : ALL_PS_EN.slice();
+  allKeys.forEach(k=>{ if(!groups[k]) list.push({key:k, label:pmGroupLabel(k,groupBy), universe:0, disposedThen:0, disposedNow:0, pendingNow:0, workDone:0, eligible:false, compNow:0, compThen:0}); });
+
+  const eligible = list.filter(g=>g.eligible);
+  const rankedNow = [...eligible].sort((a,b)=>b.compNow-a.compNow);
+  const rankedThen = [...eligible].sort((a,b)=>b.compThen-a.compThen);
+  rankedNow.forEach((g,i)=>g.rankNow=i+1);
+  rankedThen.forEach((g,i)=>g.rankThen=i+1);
+  eligible.forEach(g=>{ g.rankChange = g.rankThen - g.rankNow; g.total = eligible.length; });
+
+  list.sort((a,b)=>{
+    if(a.eligible && b.eligible) return a.rankNow-b.rankNow;
+    return (b.eligible?1:0) - (a.eligible?1:0);
+  });
+  return list;
+}
+
+// SLL अंतर्गत आबकारी/जुआ/आर्म्स/NDPS — किस थाने/वृत्त ने चालू वर्ष में सर्वाधिक कार्यवाही (गिनती) की, उसकी रैंकिंग
+function buildSLLSubRanking(groupBy){
+  const CYnow = new Date().getFullYear();
+  const base = filterByPS(dbRecords).filter(r=> !!r.sll && r.year===CYnow);
+  const groups = {};
+  base.forEach(r=>{
+    const cat = awMatchCat(r.sll);
+    if(!cat) return;
+    const key = pmGroupKey(r.ps, groupBy);
+    if(!groups[key]) groups[key] = {key, counts:{}};
+    groups[key].counts[cat] = (groups[key].counts[cat]||0)+1;
+  });
+  const allKeys = groupBy==='circle' ? DISP_CIRCLE_ORDER.slice() : ALL_PS_EN.slice();
+  allKeys.forEach(k=>{ if(!groups[k]) groups[k] = {key:k, counts:{}}; });
+  const list = Object.values(groups).map(g=>({...g, label:pmGroupLabel(g.key, groupBy)}));
+  const ranks = {};
+  AW_CATS.forEach(cat=>{
+    const sorted = [...list].sort((a,b)=>(b.counts[cat]||0)-(a.counts[cat]||0));
+    sorted.forEach((g,i)=>{ ranks[g.key] = ranks[g.key] || {}; ranks[g.key][cat] = (g.counts[cat]||0)>0 ? i+1 : null; });
+  });
+  list.sort((a,b)=>a.label.localeCompare(b.label));
+  return {list, ranks, year:CYnow, total:list.length};
+}
+function pmRenderSLLSubPanel(groupBy){
+  const {list, ranks, year, total} = buildSLLSubRanking(groupBy);
+  const groupLabel = groupBy==='circle' ? 'वृत्त' : 'थाना';
+  let h = `<h3 style="font-size:15px;margin:18px 0 6px;">🍾🎲🔫💊 SLL उप-श्रेणी — अधिक कार्यवाही रैंकिंग (${year}, अब तक)</h3>`;
+  h += `<div class="note" style="margin-bottom:8px;">इन चार श्रेणियों में जिस थाने/वृत्त ने चालू वर्ष में सर्वाधिक प्रकरण दर्ज किए (अधिक सक्रिय कार्यवाही), उसकी रैंक 1 है। रैंक न होने का अर्थ है उस श्रेणी में अब तक कोई प्रकरण दर्ज नहीं।</div>`;
+  h += `<div style="overflow-x:auto;"><table class="data-tbl"><thead><tr><th class="desc-th">${groupLabel}</th>${AW_CATS.map(c=>`<th>${AW_CATS_HI[c]}</th>`).join('')}</tr></thead><tbody>`;
+  list.forEach(g=>{
+    h += `<tr><td class="desc-td"><b>${escHtml(g.label)}</b></td>`;
+    AW_CATS.forEach(cat=>{
+      const cnt = g.counts[cat]||0;
+      const rk = ranks[g.key] && ranks[g.key][cat];
+      const top3 = rk && rk<=3;
+      h += `<td style="text-align:center;${top3?'background:#F1F8F2;color:#1B5E20;font-weight:700;':''}">${cnt}${rk?` <small>(रैंक ${rk}/${total})</small>`:''}</td>`;
+    });
+    h += `</tr>`;
+  });
+  h += `</tbody></table></div>`;
+  return h;
+}
+
+// महिला अत्याचार (WA) प्रकरणों की 60-दिवसीय निस्तारण गति व अनुपालन % — थाना/वृत्त-वार रैंकिंग
+function buildWA60Stats(groupBy){
+  const today = isoDaysAgo(0);
+  const base = filterByPS(dbRecords).filter(r=> !!r.wa && r.date);
+  const groups = {};
+  base.forEach(r=>{
+    const key = pmGroupKey(r.ps, groupBy);
+    if(!groups[key]) groups[key] = {key, within60:0, after60:0, pendingOver60:0, pendingWithin60:0, unknownDisposed:0, total:0};
+    const g = groups[key];
+    g.total++;
+    if(r.disposal!=='Pending'){
+      if(r.csDate){
+        const dd = Math.round((new Date(r.csDate)-new Date(r.date))/86400000);
+        if(dd<=60) g.within60++; else g.after60++;
+      } else {
+        g.unknownDisposed++;
+      }
+    } else {
+      const age = Math.round((new Date(today)-new Date(r.date))/86400000);
+      if(age>60) g.pendingOver60++; else g.pendingWithin60++;
+    }
+  });
+  const allKeys = groupBy==='circle' ? DISP_CIRCLE_ORDER.slice() : ALL_PS_EN.slice();
+  allKeys.forEach(k=>{ if(!groups[k]) groups[k] = {key:k, within60:0, after60:0, pendingOver60:0, pendingWithin60:0, unknownDisposed:0, total:0}; });
+  const list = Object.values(groups).map(g=>{
+    g.label = pmGroupLabel(g.key, groupBy);
+    const denom = g.within60+g.after60+g.pendingOver60;
+    g.compPct = denom ? g.within60/denom*100 : 0;
+    g.eligible = g.total >= PM_MIN_CASES;
+    return g;
+  });
+  const eligible = list.filter(g=>g.eligible).sort((a,b)=>b.compPct-a.compPct);
+  eligible.forEach((g,i)=>g.rank=i+1);
+  list.sort((a,b)=>{ if(a.eligible&&b.eligible) return a.rank-b.rank; return (b.eligible?1:0)-(a.eligible?1:0); });
+  return {list, total:eligible.length};
+}
+function pmRenderWA60Panel(groupBy){
+  const {list, total} = buildWA60Stats(groupBy);
+  const groupLabel = groupBy==='circle' ? 'वृत्त' : 'थाना';
+  let h = `<h3 style="font-size:15px;margin:18px 0 6px;">👩‍⚖️ महिला अत्याचार — 60 दिवस निस्तारण गति व अनुपालन रैंकिंग</h3>`;
+  h += `<div class="note" style="margin-bottom:8px;">यह दर्शाता है कि महिला अत्याचार के कुल कितने प्रकरण पंजीकरण के 60 दिवस के भीतर निस्तारित (चालान/एफ.आर.) हुए। अनुपालन % = 60 दिन में निस्तारित / (60 दिन में निस्तारित + 60 दिन बाद निस्तारित + 60+ दिन से लंबित)। न्यूनतम ${PM_MIN_CASES} प्रकरण आवश्यक।</div>`;
+  h += `<div style="overflow-x:auto;"><table class="data-tbl"><thead><tr><th>रैंक</th><th class="desc-th">${groupLabel}</th><th>कुल प्रकरण</th><th>60 दिन में निस्तारित</th><th>60 दिन बाद निस्तारित</th><th>60+ दिन लंबित</th><th>अनुपालन %</th></tr></thead><tbody>`;
+  list.forEach(g=>{
+    const style = !g.eligible ? 'background:#FAFAFA;color:var(--soft);' : (g.rank<=3?'background:#F1F8F2;':(g.rank>total-3?'background:#FDF2F2;':''));
+    h += `<tr style="${style}">
+      <td>${g.eligible?g.rank+' / '+total:'-'}</td>
+      <td class="desc-td"><b>${escHtml(g.label)}</b></td>
+      <td>${g.total}</td>
+      <td>${g.within60}</td>
+      <td>${g.after60}</td>
+      <td>${g.pendingOver60}</td>
+      <td><b>${g.eligible?pctFmt(g.compPct):'N/A'}</b></td>
+    </tr>`;
+  });
+  h += `</tbody></table></div>`;
+  return h;
+}
+
+function pmTrendBadge(g){
+  if(!g.eligible) return '<span style="color:var(--soft);">—</span>';
+  if(g.rankChange>0) return `<span style="color:#1B5E20;font-weight:700;">▲ ${g.rankChange}</span>`;
+  if(g.rankChange<0) return `<span style="color:#B71C1C;font-weight:700;">▼ ${Math.abs(g.rankChange)}</span>`;
+  return '<span style="color:#8a8a8a;font-weight:600;">— अपरिवर्तित</span>';
+}
+function pmRowStyle(g){
+  if(!g.eligible) return 'background:#FAFAFA;color:var(--soft);';
+  if(g.rankChange>0) return 'background:#F1F8F2;';
+  if(g.rankChange<0) return 'background:#FDF2F2;';
+  return '';
+}
+function pmMiniTable(list, groupLabel){
+  if(!list.length) return `<div class="note">कोई पात्र ${groupLabel} नहीं मिला (न्यूनतम ${PM_MIN_CASES} प्रकरण आवश्यक)।</div>`;
+  let h = `<table class="data-tbl"><thead><tr><th>${groupLabel}</th><th>अनुपालन % (अभी)</th><th>अनुपालन % (पूर्व)</th><th>रैंक बदलाव</th></tr></thead><tbody>`;
+  list.forEach(g=>{
+    h += `<tr style="${pmRowStyle(g)}"><td class="desc-td">${g.label}</td><td><b>${pctFmt(g.compNow)}</b></td><td>${pctFmt(g.compThen)}</td><td>${pmTrendBadge(g)}</td></tr>`;
+  });
+  return h+'</tbody></table>';
+}
+function renderPerfMonitor(){
+  const headKey = document.getElementById('pm-head').value;
+  const groupBy = document.getElementById('pm-group').value;
+  const windowDays = parseInt(document.getElementById('pm-window').value);
+  const groupLabel = groupBy==='circle' ? 'वृत्त' : 'थाना';
+  const cutoffLabel = isoDaysAgo(windowDays);
+
+  const list = buildPerfStats(headKey, groupBy, windowDays);
+  const eligible = list.filter(g=>g.eligible);
+  const improved = eligible.filter(g=>g.rankChange>0).sort((a,b)=>b.rankChange-a.rankChange);
+  const declined = eligible.filter(g=>g.rankChange<0).sort((a,b)=>a.rankChange-b.rankChange);
+  const unchanged = eligible.filter(g=>g.rankChange===0).length;
+
+  let h = `<div class="note" style="margin-bottom:12px;">तुलना कटऑफ : <b>${cutoffLabel}</b> (आज से ${windowDays} दिन पूर्व) — इस तिथि तक दर्ज प्रकरणों के समूह पर आधारित, ताकि हाल में दर्ज नए प्रकरण तुलना को प्रभावित न करें।</div>`;
+  h += `<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+    <div class="chip" style="cursor:default;">कुल पात्र ${groupLabel}: <b>${eligible.length}</b></div>
+    <div class="chip" style="cursor:default;color:#1B5E20;">🔼 सुधार: <b>${improved.length}</b></div>
+    <div class="chip" style="cursor:default;color:#B71C1C;">🔽 गिरावट: <b>${declined.length}</b></div>
+    <div class="chip" style="cursor:default;color:#8a8a8a;">➖ अपरिवर्तित: <b>${unchanged}</b></div>
+  </div>`;
+
+  h += `<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:18px;">
+    <div style="flex:1;min-width:320px;"><h3 style="font-size:15px;margin:0 0 8px;">🏆 सर्वाधिक सुधार (टॉप 8)</h3><div style="overflow-x:auto;">${pmMiniTable(improved.slice(0,8), groupLabel)}</div></div>
+    <div style="flex:1;min-width:320px;"><h3 style="font-size:15px;margin:0 0 8px;">⚠️ सर्वाधिक गिरावट (टॉप 8)</h3><div style="overflow-x:auto;">${pmMiniTable(declined.slice(0,8), groupLabel)}</div></div>
+  </div>`;
+
+  h += `<h3 style="font-size:15px;margin:0 0 8px;">📋 पूर्ण रैंकिंग सूची (${groupLabel}-वार)</h3>`;
+  h += `<div style="overflow-x:auto;"><table class="data-tbl"><thead><tr>
+    <th>रैंक</th><th class="desc-th">${groupLabel}</th><th>कुल प्रकरण</th><th>निस्तारित (अभी)</th><th>लंबित (अभी)</th>
+    <th>अनुपालन % (अभी)</th><th>अनुपालन % (${windowDays} दिन पूर्व)</th><th>${windowDays} दिनों में कार्य</th><th>रैंक बदलाव</th>
+  </tr></thead><tbody>`;
+  list.forEach(g=>{
+    h += `<tr style="${pmRowStyle(g)}">
+      <td>${g.eligible?g.rankNow+' / '+g.total:'-'}</td>
+      <td class="desc-td">${g.label}</td>
+      <td>${g.universe}</td>
+      <td>${g.disposedNow}</td>
+      <td>${g.pendingNow}</td>
+      <td><b>${g.eligible?pctFmt(g.compNow):'N/A'}</b></td>
+      <td>${g.eligible?pctFmt(g.compThen):'N/A'}</td>
+      <td>${g.eligible ? (g.workDone>=0?'+':'')+g.workDone : '-'}</td>
+      <td>${pmTrendBadge(g)}</td>
+    </tr>`;
+  });
+  h += `</tbody></table></div>`;
+  h += `<div class="note" style="margin-top:10px;">पात्रता: न्यूनतम ${PM_MIN_CASES} प्रकरण (चयनित हेड व अवधि हेतु)। "अनुपालन %" = निस्तारित / कुल प्रकरण (केवल कटऑफ तिथि तक दर्ज प्रकरणों के स्थिर समूह पर, ताकि नए प्रकरण तुलना को प्रभावित न करें)। रैंक बदलाव धनात्मक (▲, हरा) = सुधार, ऋणात्मक (▼, लाल) = गिरावट।</div>`;
+
+  if(headKey==='sll') h += pmRenderSLLSubPanel(groupBy);
+  if(headKey==='wa') h += pmRenderWA60Panel(groupBy);
+
+  document.getElementById('pm-result').innerHTML = h;
+  window._pmLastList = list; window._pmLastMeta = {headKey, groupBy, windowDays, groupLabel, cutoffLabel};
+}
+function pmHeadTitle(headKey){
+  if(headKey==='ALL') return 'सभी हेड (समग्र)';
+  const def = CHART_DEFS.find(d=>d.key===headKey);
+  return def ? def.title : headKey;
+}
+function pmInitSelects(){
+  const sel = document.getElementById('pm-head');
+  if(sel && !sel.options.length){
+    sel.innerHTML = '<option value="ALL">🎯 सभी हेड (समग्र रैंकिंग)</option>' + CHART_DEFS.map(d=>`<option value="${d.key}">${d.title}</option>`).join('');
+  }
+}
+function downloadPerfMonitor(){
+  if(!window._pmLastList){ toast('पहले "🔍 देखें" दबाकर रिपोर्ट तैयार करें'); return; }
+  const list = window._pmLastList, meta = window._pmLastMeta;
+  const header = ['रैंक', meta.groupLabel, 'कुल प्रकरण','निस्तारित (अभी)','लंबित (अभी)','अनुपालन % (अभी)',`अनुपालन % (${meta.windowDays} दिन पूर्व)`,`${meta.windowDays} दिनों में कार्य`,'रैंक बदलाव'];
+  const rows = list.map(g=>[
+    g.eligible?g.rankNow+' / '+g.total:'-', g.label, g.universe, g.disposedNow, g.pendingNow,
+    g.eligible?g.compNow.toFixed(2):'N/A', g.eligible?g.compThen.toFixed(2):'N/A',
+    g.eligible?g.workDone:'-', g.eligible?(g.rankChange>0?'सुधार +'+g.rankChange:g.rankChange<0?'गिरावट '+g.rankChange:'अपरिवर्तित'):'-'
+  ]);
+  exportRowsToXLSX(`performance-monitoring-${pmHeadTitle(meta.headKey).replace(/[\/\s]+/g,'-')}-${meta.groupLabel}.xlsx`, [
+    {name:'रैंकिंग रिपोर्ट', aoa:[header, ...rows], colWidths:[10,22,12,14,12,16,18,14,16], filter:true}
+  ]);
+}
+
+/* ===================== 🔍 डेटा गुणवत्ता जाँच (Data Quality Check) ===================== */
+/* उद्देश्य: पोर्टल की सभी रैंकिंग/अनुपालन गणनाएँ स्रोत डेटा की शुद्धता पर निर्भर हैं — यह पेज आम डेटा-एंट्री
+   त्रुटियों (डुप्लीकेट FIR, रिक्त IO नाम, असंभव तिथियाँ, ऋणात्मक लंबित दिन आदि) को पहले से पकड़ने हेतु है,
+   ताकि थाना-स्तर पर सुधार होकर आँकड़े और भरोसेमंद बनें। */
+function dqBuildReport(){
+  const today = isoDaysAgo(0);
+  const issues = {
+    dupFirCrime:[], futureDate:[], csBeforeReg:[], disposedNoCSDate:[], unclassified:[],
+    dupFirGen:[], missingIO:[], negativeRD:[]
+  };
+  // --- ज़िला-अपराध (crime-head / SAS Export) डेटा जाँच ---
+  const seen = {};
+  dbRecords.forEach(r=>{
+    if(r.fir && r.ps){
+      const key = r.ps+'|'+r.fir+'|'+r.year;
+      (seen[key] = seen[key]||[]).push(r);
+    }
+    if(r.date && r.date>today) issues.futureDate.push(r);
+    if(r.csDate && r.date && r.csDate<r.date) issues.csBeforeReg.push(r);
+    if(r.disposal && r.disposal!=='Pending' && !r.csDate) issues.disposedNoCSDate.push(r);
+    if(!r.ipc && !r.sll && !r.wa && !r.scst && !r.pocso && !r.rape) issues.unclassified.push(r);
+  });
+  Object.values(seen).forEach(list=>{ if(list.length>1) issues.dupFirCrime.push(...list); });
+
+  // --- 60/90-दिवस (Generic disposal) डेटा जाँच ---
+  const seenGen = {};
+  (GEN||[]).forEach(row=>{
+    const ps=row[0], limit=row[1], fir=row[2], sc=row[5], rd=row[7], io=row[8]||'';
+    if(fir && ps){ const key = ps+'|'+fir+'|'+limit; (seenGen[key]=seenGen[key]||[]).push(row); }
+    if(sc===0 && !String(io).trim()) issues.missingIO.push(row);
+    if(rd!=null && rd<0) issues.negativeRD.push(row);
+  });
+  Object.values(seenGen).forEach(list=>{ if(list.length>1) issues.dupFirGen.push(...list); });
+
+  return issues;
+}
+const DQ_DEFS = [
+  {key:'dupFirCrime', title:'डुप्लीकेट FIR (ज़िला-अपराध डेटा)', desc:'एक ही थाना+FIR नंबर+वर्ष एक से अधिक बार दर्ज है', sev:'high'},
+  {key:'dupFirGen', title:'डुप्लीकेट FIR (60/90-दिवस डेटा)', desc:'एक ही थाना+FIR+सीमा-श्रेणी एक से अधिक बार दर्ज है', sev:'high'},
+  {key:'missingIO', title:'IO नाम रिक्त (लंबित प्रकरण)', desc:'लंबित प्रकरणों में अनुसंधान अधिकारी का नाम दर्ज नहीं है — IO रैंकिंग में शामिल नहीं होंगे', sev:'med'},
+  {key:'negativeRD', title:'ऋणात्मक लंबित दिन', desc:'पंजीकरण दिनांक भविष्य में या डेटा त्रुटि के कारण लंबित दिन ऋणात्मक आ रहे हैं', sev:'high'},
+  {key:'csBeforeReg', title:'निस्तारण तिथि, पंजीकरण से पहले', desc:'चालान/एफ.आर. दिनांक, FIR पंजीकरण दिनांक से पहले की दर्ज है — असंभव, दिनांक जाँचें', sev:'high'},
+  {key:'futureDate', title:'भविष्य की पंजीकरण तिथि', desc:'FIR पंजीकरण दिनांक आज की तिथि से आगे की दर्ज है', sev:'high'},
+  {key:'disposedNoCSDate', title:'निस्तारित परंतु दिनांक रिक्त', desc:'प्रकरण चालान/एफ.आर. दर्शाया गया है परंतु निस्तारण दिनांक दर्ज नहीं है', sev:'med'},
+  {key:'unclassified', title:'अवर्गीकृत प्रकरण', desc:'यह प्रकरण किसी भी अपराध-हेड (IPC/SLL/WA/SCST/POCSO/RAPE) में चिन्हित नहीं है', sev:'low'}
+];
+function dqSevColor(sev){ return sev==='high' ? '#B71C1C' : sev==='med' ? '#B45309' : '#6B7280'; }
+function dqSevBg(sev){ return sev==='high' ? '#FDF2F2' : sev==='med' ? '#FFF8ED' : '#F5F5F5'; }
+function renderDataQuality(){
+  const issues = dqBuildReport();
+  window._dqLastIssues = issues;
+  const totalIssues = DQ_DEFS.reduce((s,d)=>s+issues[d.key].length,0);
+  let h = `<div class="note" style="margin-bottom:14px;">यह जाँच स्वतः हर बार पेज खोलने पर ताज़ा डेटा पर चलती है — किसी भी सूची में दी गई FIR/थाना जाँचकर संबंधित प्रविष्टि सुधार लें।</div>`;
+  h += `<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+    <div class="chip" style="cursor:default;">कुल संभावित त्रुटियाँ: <b>${totalIssues}</b></div>
+  </div>`;
+  if(totalIssues===0){
+    h += `<div class="note" style="background:#F1F8F2;border-color:#1B5E20;">✅ कोई स्पष्ट डेटा-त्रुटि नहीं मिली — डेटा साफ़ प्रतीत होता है।</div>`;
+  }
+  h += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:18px;">`;
+  DQ_DEFS.forEach(d=>{
+    const n = issues[d.key].length;
+    h += `<div style="border:1.5px solid ${dqSevColor(d.sev)};background:${dqSevBg(d.sev)};border-radius:10px;padding:12px 14px;cursor:${n?'pointer':'default'};" ${n?`onclick="dqShowDetail('${d.key}')"`:''}>
+      <div style="font-size:22px;font-weight:800;color:${dqSevColor(d.sev)};">${n}</div>
+      <div style="font-weight:700;margin:2px 0 4px;">${d.title}</div>
+      <div style="font-size:12px;color:var(--soft);">${d.desc}</div>
+      ${n?`<div style="margin-top:6px;font-size:12px;color:${dqSevColor(d.sev)};font-weight:700;">देखने हेतु क्लिक करें →</div>`:''}
+    </div>`;
+  });
+  h += `</div><div id="dq-detail"></div>`;
+  document.getElementById('dq-result').innerHTML = h;
+}
+function dqShowDetail(key){
+  const def = DQ_DEFS.find(d=>d.key===key);
+  const list = (window._dqLastIssues||{})[key] || [];
+  const box = document.getElementById('dq-detail');
+  if(!list.length){ box.innerHTML=''; return; }
+  const isGenSource = key==='dupFirGen' || key==='missingIO' || key==='negativeRD';
+  let rowsHtml;
+  if(isGenSource){
+    rowsHtml = list.slice(0,200).map(row=>`<tr><td>${ENG2HI_PS[row[0]]||row[0]}</td><td>${row[2]||'-'}</td><td>${row[3]||'-'}</td><td>${row[1]}</td><td>${row[8]||'-'}</td><td>${row[7]!=null?row[7]:'-'}</td></tr>`).join('');
+    rowsHtml = `<table class="data-tbl"><thead><tr><th>थाना</th><th>FIR</th><th>पंजीकरण दिनांक</th><th>सीमा</th><th>IO</th><th>लंबित दिन</th></tr></thead><tbody>${rowsHtml}</tbody></table>`;
+  } else {
+    rowsHtml = list.slice(0,200).map(r=>`<tr><td>${ENG2HI_PS[r.ps]||r.ps}</td><td>${r.fir||'-'}</td><td>${r.date||'-'}</td><td>${r.disposal||'-'}</td><td>${r.csDate||'-'}</td></tr>`).join('');
+    rowsHtml = `<table class="data-tbl"><thead><tr><th>थाना</th><th>FIR</th><th>पंजीकरण दिनांक</th><th>स्थिति</th><th>निस्तारण दिनांक</th></tr></thead><tbody>${rowsHtml}</tbody></table>`;
+  }
+  box.innerHTML = `<h3 style="font-size:15px;margin:8px 0;">${def.title} (कुल ${list.length}${list.length>200?' — पहले 200 दिखाए जा रहे हैं, पूर्ण सूची हेतु डाउनलोड करें':''})</h3>
+    <button class="btn-fill sm" style="background:#37474F;margin-bottom:8px;" onclick="dqDownloadIssue('${key}')">📥 पूर्ण सूची डाउनलोड करें</button>
+    <div style="overflow-x:auto;">${rowsHtml}</div>`;
+}
+function dqDownloadIssue(key){
+  const def = DQ_DEFS.find(d=>d.key===key);
+  const list = (window._dqLastIssues||{})[key] || [];
+  if(!list.length) return;
+  const isGenSource = key==='dupFirGen' || key==='missingIO' || key==='negativeRD';
+  let header, rows;
+  if(isGenSource){
+    header = ['थाना','FIR','पंजीकरण दिनांक','सीमा','IO','लंबित दिन'];
+    rows = list.map(row=>[ENG2HI_PS[row[0]]||row[0], row[2]||'-', row[3]||'-', row[1], row[8]||'-', row[7]!=null?row[7]:'-']);
+  } else {
+    header = ['थाना','FIR','पंजीकरण दिनांक','स्थिति','निस्तारण दिनांक'];
+    rows = list.map(r=>[ENG2HI_PS[r.ps]||r.ps, r.fir||'-', r.date||'-', r.disposal||'-', r.csDate||'-']);
+  }
+  exportRowsToXLSX(`data-quality-${key}.xlsx`, [{name:def.title.slice(0,31), aoa:[header,...rows], colWidths:[18,14,16,12,20,12], filter:true}]);
+}
+function dqDownloadAll(){
+  const issues = window._dqLastIssues || dqBuildReport();
+  const sheets = [];
+  DQ_DEFS.forEach(d=>{
+    const list = issues[d.key]; if(!list.length) return;
+    const isGenSource = d.key==='dupFirGen' || d.key==='missingIO' || d.key==='negativeRD';
+    let header, rows;
+    if(isGenSource){
+      header = ['थाना','FIR','पंजीकरण दिनांक','सीमा','IO','लंबित दिन'];
+      rows = list.map(row=>[ENG2HI_PS[row[0]]||row[0], row[2]||'-', row[3]||'-', row[1], row[8]||'-', row[7]!=null?row[7]:'-']);
+    } else {
+      header = ['थाना','FIR','पंजीकरण दिनांक','स्थिति','निस्तारण दिनांक'];
+      rows = list.map(r=>[ENG2HI_PS[r.ps]||r.ps, r.fir||'-', r.date||'-', r.disposal||'-', r.csDate||'-']);
+    }
+    sheets.push({name:d.title.slice(0,31), aoa:[header,...rows], colWidths:[18,14,16,12,20,12], filter:true});
+  });
+  if(!sheets.length){ toast('✅ कोई त्रुटि नहीं मिली — डाउनलोड हेतु कुछ नहीं'); return; }
+  exportRowsToXLSX('data-quality-report-full.xlsx', sheets);
 }
 
 /* ===================== MASTER RENDER ===================== */
@@ -9820,7 +10442,7 @@ function cpFillSelects(page){
     ts.dataset.filled='1';
   }
   if(ys && !ys.dataset.filled){
-    for(let y=CY+1;y>=CY-3;y--){ const o=document.createElement('option'); o.value=y; o.textContent=y+''; ys.appendChild(o); }
+    for(let y=CY+3;y>=CY-3;y--){ const o=document.createElement('option'); o.value=y; o.textContent=y+''; ys.appendChild(o); }
     ys.dataset.filled='1';
   }
   if(ms && !ms.dataset.filled){
@@ -9914,7 +10536,7 @@ function monInitSelects(){
     if(cur) pageSel.value=cur;
   }
   const ys=document.getElementById('mon-year'), ms=document.getElementById('mon-month');
-  if(ys && !ys.dataset.filled){ for(let y=CY+1;y>=CY-3;y--){ const o=document.createElement('option'); o.value=y;o.textContent=y+'';ys.appendChild(o); } ys.dataset.filled='1'; ys.value=CY; }
+  if(ys && !ys.dataset.filled){ for(let y=CY+3;y>=CY-3;y--){ const o=document.createElement('option'); o.value=y;o.textContent=y+'';ys.appendChild(o); } ys.dataset.filled='1'; ys.value=CY; }
   if(ms && !ms.dataset.filled){ MONTHS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1;o.textContent=m;ms.appendChild(o); }); ms.dataset.filled='1'; ms.value=new Date().getMonth()+1; }
   monPopulateFormats();
 }
@@ -9960,7 +10582,7 @@ function awMatchCat(sll){
 
 function awInitSelects(){
   const ys=document.getElementById('aw-year'), ms=document.getElementById('aw-month');
-  if(ys && !ys.dataset.filled){ for(let y=CY+1;y>=CY-3;y--){ const o=document.createElement('option'); o.value=y;o.textContent=y+'';ys.appendChild(o); } ys.dataset.filled='1'; ys.value=CY; }
+  if(ys && !ys.dataset.filled){ for(let y=CY+3;y>=CY-3;y--){ const o=document.createElement('option'); o.value=y;o.textContent=y+'';ys.appendChild(o); } ys.dataset.filled='1'; ys.value=CY; }
   if(ms && !ms.dataset.filled){ MONTHS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1;o.textContent=m;ms.appendChild(o); }); ms.dataset.filled='1'; ms.value=new Date().getMonth()+1; }
 }
 
@@ -10001,7 +10623,7 @@ function renderActWatch(){
     if(y===curY) counts[ps][cat].cur++; else counts[ps][cat].prev++;
   });
   const stList = Array.from(stations).sort();
-  const periodLabel = cumulative ? `${MONTHS[1]}–${MONTHS[month]}` : MONTHS[month];
+  const periodLabel = cumulative ? `${MONTHS[0]}–${MONTHS[month-1]}` : MONTHS[month-1];
   if(!stList.length){
     let diag = `<div class="note">चयनित अवधि/वर्ष हेतु इन श्रेणियों (आबकारी/जुआ/आर्म्स/NDPS) में कोई डेटा नहीं मिला।</div>
       <div style="margin-top:10px;font-size:12px;background:#FAFAFA;border:1px solid #ddd;border-radius:8px;padding:10px 12px;">
@@ -10149,7 +10771,7 @@ function awBuildLetterHTML(ps, alerts, month, year, serialNo){
   const circle = dispCircleOf(ps);
   const psEmail = AW_PS_EMAIL[ps] || {desig:'थानाधिकारी, '+hi, email:'-'};
   const coEmail = AW_CIRCLE_EMAIL[circle] || null;
-  const periodLabel = `${MONTHS[1]}–${MONTHS[month]} ${year}`;
+  const periodLabel = `${MONTHS[0]}–${MONTHS[month-1]} ${year}`;
   const refNo = `डीड.-कुचा/अ.शा./SPL/${serialNo}/${year}`;
 
   let actRows = '';
@@ -10212,7 +10834,7 @@ function awBuildLetterHTML(ps, alerts, month, year, serialNo){
       <b>विषय: थाना ${hi} में आबकारी/जुआ/आर्म्स/NDPS एक्ट में गत वर्ष की तुलना में कम कार्यवाही एवं 60/90 दिवस पेंडेंसी की स्थिति के संबंध में।</b>
     </div>
     <div style="margin-bottom:8px;font-size:11.8px;text-align:justify">
-      उपर्युक्त विषयान्तर्गत लेख है कि सांख्यिकी शाखा द्वारा किए गए विश्लेषण अनुसार आपके थाना क्षेत्र में अवधि जनवरी–<b>${periodLabel}</b> (गत वर्ष की समान अवधि जनवरी–${MONTHS[month]} ${year-1} की तुलना में) निम्नलिखित अधिनियम(अधिनियमों) में कार्यवाही कम पाई गई है:
+      उपर्युक्त विषयान्तर्गत लेख है कि सांख्यिकी शाखा द्वारा किए गए विश्लेषण अनुसार आपके थाना क्षेत्र में अवधि जनवरी–<b>${periodLabel}</b> (गत वर्ष की समान अवधि जनवरी–${MONTHS[month-1]} ${year-1} की तुलना में) निम्नलिखित अधिनियम(अधिनियमों) में कार्यवाही कम पाई गई है:
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px">
       <thead><tr style="background:#7B1E3A;color:#fff">
@@ -10279,7 +10901,7 @@ async function awGenerateLetters(){
 
   const { jsPDF } = window.jspdf;
   const marginX = 34, marginY = 28;
-  const periodTag = `जन-${MONTHS[month]}-${year}`;
+  const periodTag = `जन-${MONTHS[month-1]}-${year}`;
 
   if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
 
@@ -10355,7 +10977,7 @@ function awGenerateLettersWord(){
 <body>${lettersHtml}</body>
 </html>`;
 
-  const periodTag = `जन-${MONTHS[month]}-${year}`;
+  const periodTag = `जन-${MONTHS[month-1]}-${year}`;
   const blob = new Blob(['\ufeff', html], {type:'application/msword'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -10548,13 +11170,16 @@ function cpPrevMonth(year,month){
   return {year:y, month:m};
 }
 
-/** किसी प्रारूप में "गत/पिछले माह...लंबित/पेंडिंग/शेष" वाला कॉलम मिले, तो पिछले माह के
+/** किसी प्रारूप में "गत/पिछले/प्रारम्भ के माह...लंबित/पेंडिंग/शेष" वाला कॉलम मिले, तो पिछले माह के
  * "इस माह के अंत में...लंबित/पेंडिंग/शेष" कॉलम के योग से उसे अपने-आप भर देता है —
  * ताकि पिछले माह का अंत-शेष, अगले माह के प्रारंभ में अपने-आप आ जाए। */
+const CP_PEND_RE = /(लंबित|पेंडिंग|पेंडिग|शेष|अवशेष)/;
+const CP_OPEN_RE = /(गत\s*माह|पिछल[ेा]\s*माह|पूर्व\s*माह|माह\s*(की|के)?\s*(प्रारम्भ|शुरुआत|शुरू|आरंभ))/;
+const CP_CLOSE_RE = /(इस\s*माह.*अंत|माह\s*के\s*अंत|माहांत|अंत\s*में|समाप्ति\s*पर)/;
 function cpFindPendingCols(fmt){
-  const isPend=(l)=>/(लंबित|पेंडिंग|पेंडिग|शेष|अवशेष)/.test(l);
-  const isOpen=(l)=>/(गत\s*माह|पिछल[ेा]\s*माह|पूर्व\s*माह)/.test(l) && isPend(l);
-  const isClose=(l)=>/(इस\s*माह.*अंत|माह\s*के\s*अंत|माहांत|अंत\s*में|समाप्ति\s*पर)/.test(l) && isPend(l);
+  const isPend=(l)=>CP_PEND_RE.test(l);
+  const isOpen=(l)=>CP_OPEN_RE.test(l) && isPend(l);
+  const isClose=(l)=>CP_CLOSE_RE.test(l) && isPend(l);
   const openCol=fmt.cols.find(c=>isOpen(c.label));
   const closeCol=fmt.cols.find(c=>isClose(c.label));
   return {openCol, closeCol};
@@ -10637,17 +11262,27 @@ function cpRenderRows(fmt, rows){
   cpRecalcAll();
 }
 
+function cpFieldLabel(col){
+  // "माह की शुरुआत में पेंडिंग"/"माह के अंत में पेंडिंग" जैसे सामान्य लेबल भरने वाले को भ्रमित करते हैं
+  // (कौन-सा माह?) — इसलिए भरते समय स्क्रीन पर असली चयनित माह-वर्ष के साथ दिखाया जाता है (संग्रहीत लेबल अपरिवर्तित रहता है)
+  if(!entryCtx || !entryCtx.monthName || !entryCtx.year) return col.label;
+  if(!CP_PEND_RE.test(col.label)) return col.label;
+  if(CP_OPEN_RE.test(col.label)) return `${entryCtx.monthName} ${entryCtx.year} के प्रारम्भ में पेंडिंग`;
+  if(CP_CLOSE_RE.test(col.label)) return `${entryCtx.monthName} ${entryCtx.year} के अंत में पेंडिंग`;
+  return col.label;
+}
 function cpRenderRow(fmt,r,i){
   const thana=entryCtx?entryCtx.thana:'';
   let fields='';
   fmt.cols.forEach(col=>{
     const val=r[col.k]||'';
+    const lbl=cpFieldLabel(col);
     if(col.type==='formula'){
-      fields+=`<div class="case-field"><label>Σ ${escHtml(col.label)}</label><input type="text" name="${col.k}" value="${escHtml(val)}" readonly style="background:#F3E5F5;font-weight:700;color:#4A148C"></div>`;
+      fields+=`<div class="case-field"><label>Σ ${escHtml(lbl)}</label><input type="text" name="${col.k}" value="${escHtml(val)}" readonly style="background:#F3E5F5;font-weight:700;color:#4A148C"></div>`;
     } else if(col.type==='number'){
-      fields+=`<div class="case-field"><label>${escHtml(col.label)}</label><input type="number" inputmode="decimal" name="${col.k}" value="${escHtml(val)}" oninput="cpOnNumberInput(this)"></div>`;
+      fields+=`<div class="case-field"><label>${escHtml(lbl)}</label><input type="number" inputmode="decimal" name="${col.k}" value="${escHtml(val)}" oninput="cpOnNumberInput(this)"></div>`;
     } else {
-      fields+=`<div class="case-field"><label>${escHtml(col.label)}</label><input type="text" name="${col.k}" value="${escHtml(val)}"></div>`;
+      fields+=`<div class="case-field"><label>${escHtml(lbl)}</label><input type="text" name="${col.k}" value="${escHtml(val)}"></div>`;
     }
   });
   return `<div class="case-row" id="crow-${i}">

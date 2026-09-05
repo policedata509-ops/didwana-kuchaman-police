@@ -1129,6 +1129,73 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
 </head>
 <body>
 
+<!-- ============================================================
+     सम्पूर्ण वेबसाइट लॉक — डिफ़ॉल्ट पासवर्ड "Manoj" (Settings से बदला जा सकता है)।
+     सूचना-प्रारूप की सीधी लिंक (?entry=...) से आने पर यह लॉक अपने-आप बायपास हो जाता है।
+     ============================================================ -->
+<div id="site-lock-overlay" style="position:fixed;inset:0;z-index:99999;background:radial-gradient(circle at 30% 20%,#233457,#141D30 60%);display:flex;align-items:center;justify-content:center;padding:20px;font-family:'Hind','Noto Sans Devanagari',system-ui,-apple-system,'Segoe UI',sans-serif;">
+  <div style="width:100%;max-width:380px;">
+    <div style="height:5px;border-radius:5px 5px 0 0;background:linear-gradient(90deg,#FF9933 0 33%,#fff 33% 66%,#138808 66% 100%)"></div>
+    <div style="background:#fdfdfb;border-radius:0 0 12px 12px;width:100%;padding:32px 26px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.45)">
+      <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#4F46E5,#141D30);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:26px;box-shadow:0 4px 14px rgba(79,70,229,.35)">🔒</div>
+      <div style="font-family:Georgia,'Times New Roman',serif;font-weight:700;font-size:17px;margin-bottom:4px;color:#141D30">पुलिस अधीक्षक कार्यालय रज.शाखा</div>
+      <div style="font-family:Georgia,'Times New Roman',serif;font-weight:600;font-size:14px;margin-bottom:14px;color:#4F46E5">डीडवाना-कुचामन पोर्टल</div>
+      <div style="font-size:12.5px;color:#5a6570;margin-bottom:16px">आगे बढ़ने के लिए पासवर्ड दर्ज करें</div>
+      <div style="position:relative;margin-bottom:10px;">
+        <input type="password" id="site-lock-pw" placeholder="पासवर्ड" autocomplete="off" style="width:100%;padding:12px 42px 12px 14px;border:1.5px solid #c9cfc7;border-radius:8px;font-size:15px;box-sizing:border-box;transition:border-color .15s" onkeydown="if(event.key==='Enter')siteLockSubmit()" onfocus="this.style.borderColor='#4F46E5'" onblur="this.style.borderColor='#c9cfc7'">
+        <button type="button" onclick="siteLockTogglePw()" id="site-lock-eye" aria-label="पासवर्ड दिखाएँ" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:17px;cursor:pointer;padding:6px;color:#8a92a3">👁️</button>
+      </div>
+      <div id="site-lock-err" style="color:#B71C1C;font-size:12.5px;min-height:16px;margin-bottom:8px"></div>
+      <button onclick="siteLockSubmit()" style="width:100%;padding:12px;border:none;border-radius:8px;background:linear-gradient(135deg,#4F46E5,#141D30);color:#fff;font-weight:700;font-size:14.5px;cursor:pointer;letter-spacing:.3px">खोलें 🔓</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var SITE_LOCK_PASSWORD_DEFAULT = 'Manoj';
+  var SITE_LOCK_KEY = 'site_unlocked_v1';
+  function getSiteLockPassword(){
+    try{ return localStorage.getItem('dkSiteLockPwOverride') || SITE_LOCK_PASSWORD_DEFAULT; }catch(e){ return SITE_LOCK_PASSWORD_DEFAULT; }
+  }
+  function hideLock(){
+    var ov=document.getElementById('site-lock-overlay');
+    if(ov) ov.style.display='none';
+  }
+  function hasDirectEntryBypass(){
+    try{
+      var params=new URLSearchParams(location.search);
+      return params.has('entry') || params.has('openpg');
+    }catch(e){ return false; }
+  }
+  window.siteLockTogglePw=function(){
+    var el=document.getElementById('site-lock-pw');
+    var eye=document.getElementById('site-lock-eye');
+    if(!el) return;
+    if(el.type==='password'){ el.type='text'; if(eye) eye.textContent='🙈'; }
+    else { el.type='password'; if(eye) eye.textContent='👁️'; }
+  };
+  window.siteLockSubmit=function(){
+    var el=document.getElementById('site-lock-pw');
+    var val=el?el.value:'';
+    if(val===getSiteLockPassword()){
+      try{ localStorage.setItem(SITE_LOCK_KEY,'1'); }catch(e){}
+      hideLock();
+    } else {
+      var errEl=document.getElementById('site-lock-err');
+      if(errEl) errEl.textContent='❌ गलत पासवर्ड — पुनः प्रयास करें';
+      if(el){ el.value=''; el.focus(); }
+    }
+  };
+  var already=false;
+  try{ already = localStorage.getItem(SITE_LOCK_KEY)==='1'; }catch(e){}
+  if(already || hasDirectEntryBypass()){
+    hideLock();
+  } else {
+    setTimeout(function(){ var el=document.getElementById('site-lock-pw'); if(el) el.focus(); }, 100);
+  }
+})();
+</script>
+
 <div class="tc"><span></span><span></span><span></span></div>
 
 <div class="topbar">
@@ -1665,9 +1732,14 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
     </div>
     <input type="file" id="wrFileInput" accept=".xlsx,.xls,.csv" style="display:none">
     <textarea id="wrPasteArea" rows="3" placeholder="...या यहां एक्सेल से कॉपी करके पेस्ट करें (हैडिंग वाली पंक्ति सहित)" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--line);font-family:monospace;margin-top:12px"></textarea>
-    <div class="note" style="margin-top:8px">⚠️ यह अपडेट सिर्फ इस ब्राउज़र सत्र तक सीमित रहेगा, पेज रीलोड होते ही जुलाई का मूल डेटा वापस आ जाएगा — इसलिए अपडेट के बाद तुरंत रजिस्टर पेज पर जाकर CSV डाउनलोड करके सुरक्षित रख लें।</div>
+    <div class="rowline" style="margin-top:12px;">
+      <label style="font-size:12.5px;"><input type="radio" name="wrMergeMode" value="replace" checked> पूरी तरह बदलें (Replace)</label>
+      <label style="font-size:12.5px;"><input type="radio" name="wrMergeMode" value="append"> मौजूदा डेटा में जोड़ें (Append)</label>
+    </div>
+    <div class="note" style="margin-top:8px">🔄 अपडेट करने से पहले, अभी Sheet में मौजूद डेटा देखने के लिए नीचे "पुराना डेटा लोड करें" दबाएँ।</div>
     <div id="wrUpdateStatus" style="margin-top:8px;font-size:12.5px;"></div>
     <div class="db-modal-actions">
+      <button class="btn-ghost" onclick="wrLoadOldData()">🔄 पुराना डेटा लोड करें</button>
       <button class="btn-fill" style="background:linear-gradient(135deg,#4A148C,#2A0A4F)" onclick="wrLoadNewData()">📥 डेटा अपडेट करें</button>
       <button class="btn-ghost" onclick="closeWrModal()">बंद करें</button>
     </div>
@@ -2441,6 +2513,18 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
         <button class="btn-ghost sm" onclick="resetSheetSecretUI()">डिफ़ॉल्ट पर वापस लाएं</button>
       </div>
       <p id="sheetSecretChangeStatus" style="font-size:12.5px;margin-top:8px;color:var(--soft)"></p>
+
+      <div class="pcard-desc" style="margin-top:14px;">
+        <b>🔒 सम्पूर्ण वेबसाइट लॉक पासवर्ड</b> (पेज खुलते ही जो पासवर्ड माँगा जाता है) — यहाँ से बदलने पर सिर्फ़ <u>इसी ब्राउज़र/डिवाइस</u> पर लागू होगा, बाकी डिवाइस पुराने पासवर्ड से ही खुलेंगे जब तक वहाँ भी न बदलें।
+      </div>
+      <div class="ctx-grid" style="margin-top:8px;">
+        <div><label>नया साइट-लॉक पासवर्ड</label><input type="text" id="newSiteLockPwInput" placeholder="कम से कम 4 अक्षर"></div>
+      </div>
+      <div class="pcard-actions">
+        <button class="btn-fill sm" style="background:linear-gradient(135deg,#B71C1C,#7F0000)" onclick="changeSiteLockPasswordUI()">🔐 पासवर्ड बदलें</button>
+        <button class="btn-ghost sm" onclick="resetSiteLockPasswordUI()">डिफ़ॉल्ट पर वापस लाएं</button>
+      </div>
+      <p id="siteLockPwChangeStatus" style="font-size:12.5px;margin-top:8px;color:var(--soft)"></p>
     </div>
 
     <div class="pcard" style="--ca:#37474F">
@@ -2790,7 +2874,8 @@ function reply(obj) {
         <p><b>डेटा सेव करने के बाद:</b> "💾 सेव करें" दबाएँ — डेटा इस माह के लिए सुरक्षित हो जाएगा। फिर <b>"📥 डाउनलोड"</b> से Excel या PDF में डाउनलोड करें।</p>
         <button class="btn-fill" onclick="saveEntry()">💾 सेव करें</button>
         <button class="btn-dl" id="entry-dl-btn" onclick="downloadCurrentEntry()">📥 डाउनलोड</button>
-        <button class="btn-ghost sm" id="cp-pull-btn" style="display:none" onclick="cpPullFromServer()">🔄 सर्वर से ताज़ा लाएँ</button>
+        <button class="btn-ghost sm" id="cp-pull-btn" style="display:none" onclick="pullEntryFromServer()">🔄 सर्वर से ताज़ा (पुराना) डेटा लाएँ</button>
+        <button class="btn-ghost sm" id="entry-share-link-btn" style="display:none" onclick="shareDirectEntryLink()">🔗 इस प्रारूप की सीधी लिंक भेजें (पासवर्ड-मुक्त)</button>
       </div>
       <div id="next-fmt-panel" class="next-fmt-panel" style="display:none">
         <div class="next-fmt-icon">✅</div>
@@ -2895,6 +2980,15 @@ const CIRCLES = [
 ];
 const MONTHS = ['जनवरी','फरवरी','मार्च','अप्रैल','मई','जून','जुलाई','अगस्त','सितम्बर','अक्टूबर','नवम्बर','दिसम्बर'];
 const CY = new Date().getFullYear();
+/** मासिक सूचना-प्रारूप डिफ़ॉल्ट रूप से पिछले (अभी-अभी पूर्ण हुए) माह की भरी जाती है — जैसे अभी
+ * सितम्बर चल रहा हो तो डिफ़ॉल्ट अगस्त आए, दिसम्बर से जनवरी में जाने पर वर्ष भी एक घटे। */
+function defaultEntryMonthYear(){
+  const d=new Date();
+  const curMonth1=d.getMonth()+1, curYear=d.getFullYear();
+  let prevMonth=curMonth1-1, prevYear=curYear;
+  if(prevMonth<1){ prevMonth=12; prevYear=curYear-1; }
+  return {month:prevMonth, year:prevYear};
+}
 
 // Current context (which entry is open)
 let entryCtx = null; // {branch, type, thana, year, month}
@@ -3106,6 +3200,20 @@ function changeSheetSecretUI(){
     document.getElementById('newSheetSecretInput').value='';
   }catch(e){ statusEl.innerHTML = '🔴 सेव नहीं हो पाया।'; }
 }
+function changeSiteLockPasswordUI(){
+  const val = document.getElementById('newSiteLockPwInput').value.trim();
+  const statusEl = document.getElementById('siteLockPwChangeStatus');
+  if(val.length<4){ statusEl.innerHTML = '🔴 पासवर्ड कम से कम 4 अक्षर का होना चाहिए।'; return; }
+  try{
+    localStorage.setItem('dkSiteLockPwOverride', val);
+    statusEl.innerHTML = '🟢 साइट-लॉक पासवर्ड बदल दिया गया — अगली बार लॉक होने पर इसी डिवाइस पर यही नया पासवर्ड काम करेगा।';
+    document.getElementById('newSiteLockPwInput').value='';
+  }catch(e){ statusEl.innerHTML = '🔴 सेव नहीं हो पाया।'; }
+}
+function resetSiteLockPasswordUI(){
+  try{ localStorage.removeItem('dkSiteLockPwOverride'); }catch(e){}
+  document.getElementById('siteLockPwChangeStatus').innerHTML = '🟢 साइट-लॉक डिफ़ॉल्ट पासवर्ड पर वापस आ गया।';
+}
 function resetSheetSecretUI(){
   try{ localStorage.removeItem('dkSheetWriteSecretOverride'); }catch(e){}
   document.getElementById('sheetSecretChangeStatus').innerHTML = '🟢 डिफ़ॉल्ट Secret पर वापस आ गया (Apps Script में भी डिफ़ॉल्ट होना चाहिए)।';
@@ -3195,7 +3303,7 @@ function dtBranchChanged(){
 /** हर branch/type के लिए: सभी थानों के payload से कुल योग निकालने का तरीका.
  * लौटाता है: { headers:[...], thanaRows:[{thana,cells:[...]}], totalRow:[...], note }
  */
-function computeDistrictAggregate(branch,fmtKey,rowsFromServer){
+function computeDistrictAggregate(branch,fmtKey,rowsFromServer,monthName,year){
   const byThana={};
   rowsFromServer.forEach(r=>{ byThana[r.thana]=r.payload; });
   const allThanas=CIRCLES.flatMap(c=>c.thanas);
@@ -3234,7 +3342,7 @@ function computeDistrictAggregate(branch,fmtKey,rowsFromServer){
 
   if(branch==='malkhana'){
     const cfg=MALKHANA_FORMATS[fmtKey];
-    const headers=[cfg.descLabel||'विवरण',...cfg.cols.map(c=>c.label)];
+    const headers=[cfg.descLabel||'विवरण',...cfg.cols.map(c=>monthizeLabel(c.label, monthName, year))];
     if(cfg.hasYogCol) headers.push('योग');
     const dataRows=cfg.rows.filter(r=>!r.autoRow);
     const thanaRows=[];
@@ -3262,7 +3370,7 @@ function computeDistrictAggregate(branch,fmtKey,rowsFromServer){
 
   if(branch==='summon'){
     const schema=SUMMON_SCHEMAS[fmtKey];
-    const headers=['थाना / वारंट प्रकार',...schema.cols.map(c=>c.label)];
+    const headers=['थाना / वारंट प्रकार',...schema.cols.map(c=>monthizeLabel(c.label, monthName, year))];
     const thanaRows=[];
     const grand={}; WARRANT_KEYS.forEach(wk=>{ grand[wk]={}; schema.cols.forEach(c=>{ grand[wk][c.k]=0; }); });
     allThanas.forEach(thana=>{
@@ -3373,7 +3481,7 @@ async function loadDistrictTotal(){
   const res=await fetchFromServer(branch,fmtKey,year,month,'');
   if(!res.ok){ statusEl.innerHTML='🔴 डेटा लाने में त्रुटि: '+(res.error||'अज्ञात'); return; }
 
-  const agg=computeDistrictAggregate(branch,fmtKey,res.rows||[]);
+  const agg=computeDistrictAggregate(branch,fmtKey,res.rows||[],MONTHS[month-1],year);
   dtLastAggregate=agg; dtLastMeta={branch,fmtKey,year,month,title:getFormatTitle(branch,fmtKey)};
 
   statusEl.innerHTML=`🟢 <b>${agg.filledCount}/${agg.totalCount}</b> थानों ने डेटा भरा है। नीचे सभी थानों की पंक्तियाँ व अंत में <b>जिला योग</b> देखें।`;
@@ -3578,8 +3686,8 @@ function initSelects(){
   const setSecret=document.getElementById('set-secret');
   if(setUrl) setUrl.value=getSyncUrl();
   if(setSecret) setSecret.value=getSyncSecret();
-  // default month/year
-  const cm=new Date().getMonth()+1, cy=new Date().getFullYear();
+  // default month/year — बीता हुआ (पूर्ण हो चुका) माह डिफ़ॉल्ट रूप से चुना जाता है
+  const {month:cm, year:cy} = defaultEntryMonthYear();
   ['ap','sv','mk'].forEach(pre=>{
     const ys=document.getElementById(pre+'-year');
     const ms=document.getElementById(pre+'-month');
@@ -3700,6 +3808,10 @@ function openApradhEntry(type){
     let rows=saved.rows&&saved.rows.length?saved.rows:[emptyApradhRow()];
     renderApradhRows(cfg, rows, key);
   }
+  const pullBtnAp=document.getElementById('cp-pull-btn');
+  if(pullBtnAp) pullBtnAp.style.display = isSyncConfigured() ? 'inline-block' : 'none';
+  const shareBtnAp=document.getElementById('entry-share-link-btn');
+  if(shareBtnAp) shareBtnAp.style.display = 'inline-block';
   document.getElementById('entry-overlay').classList.add('on');
   document.body.style.overflow='hidden';
 }
@@ -3712,7 +3824,196 @@ function renderApradhRows(cfg, rows, key){
     html+=renderApradhRow(cfg,r,i);
   });
   html+=`</div><button class="add-row-btn" onclick="addApradhRow()">+ नई पंक्ति जोड़ें (नया प्रकरण)</button>`;
+  html+=apradhBulkToolsHtml(cfg);
   document.getElementById('entry-content').innerHTML=html;
+}
+
+/** पेंडिंग(>1वर्ष)/BNSS-CrPC/री-ओपन जैसे row-based प्रारूपों में एक-एक करके भरने के बजाय
+ * (1) Current Status (FDC) डेटा से सूची अपने-आप बनाने और (2) एक्सेल में एक साथ भरकर अपलोड करने
+ * के औज़ार दिखाता है। सम्पत्ति (tableMode) प्रारूप में यह टूलबार नहीं दिखता। */
+function apradhBulkToolsHtml(cfg){
+  if(cfg.tableMode) return '';
+  return `
+  <div class="ap-bulk-tools" style="margin-top:18px;padding:14px;border:1.5px dashed var(--line);border-radius:10px;background:#FAFBFC">
+    <div style="font-weight:700;margin-bottom:6px">📋 Current Status (FDC) डेटा से सूची अपने-आप बनाएं</div>
+    <div class="note" style="margin-bottom:8px">इस थाने के मु.अ.सं./धारा अपने-आप भर देगा — विवरण/अ.अ./कारण खाने खाली रहेंगे, वे मैन्युअल भरें।</div>
+    <div class="rowline" style="margin-bottom:8px">
+      <label style="font-size:12.5px;margin-right:14px"><input type="radio" name="apFdcMode" value="replace" checked> मौजूदा पंक्तियाँ बदलें</label>
+      <label style="font-size:12.5px"><input type="radio" name="apFdcMode" value="append"> मौजूदा में जोड़ें</label>
+    </div>
+    <div class="rowline">
+      <button class="btn-ghost sm" onclick="apGenFromFDC('today')">📋 आज दिनांक तक</button>
+      <button class="btn-ghost sm" onclick="apGenFromFDC('lastmonth')">📋 पिछले माह के अंत तक</button>
+    </div>
+  </div>
+  <div class="ap-bulk-tools" style="margin-top:12px;padding:14px;border:1.5px dashed var(--line);border-radius:10px;background:#FAFBFC">
+    <div style="font-weight:700;margin-bottom:6px">📤 एक्सेल से एक साथ अपलोड करें (एक-एक पंक्ति भरने के बजाय)</div>
+    <div class="rowline" style="margin-bottom:8px">
+      <button class="btn-ghost sm" onclick="apDownloadSample()">📥 सैंपल फाइल डाउनलोड</button>
+      <button class="btn-ghost sm" onclick="apDownloadOldData()">📥 मौजूदा भरा डेटा डाउनलोड</button>
+    </div>
+    <input type="file" id="apXlsFile" accept=".xlsx,.xls,.csv" style="margin-bottom:8px">
+    <textarea id="apXlsPaste" rows="3" placeholder="...या यहां एक्सेल से कॉपी करके पेस्ट करें (हैडिंग वाली पंक्ति सहित)" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--line);font-family:monospace"></textarea>
+    <div class="rowline" style="margin:8px 0">
+      <label style="font-size:12.5px;margin-right:14px"><input type="radio" name="apXlsMode" value="replace" checked> मौजूदा पंक्तियाँ बदलें</label>
+      <label style="font-size:12.5px"><input type="radio" name="apXlsMode" value="append"> मौजूदा में जोड़ें</label>
+    </div>
+    <button class="btn-fill sm" onclick="apUploadXls()">📤 अपलोड करके भरें</button>
+    <div id="apXlsStatus" style="margin-top:8px;font-size:12.5px"></div>
+  </div>`;
+}
+
+/** थाना-नाम (Hindi) से FDC.ps में मौजूद अंग्रेज़ी नाम पर वापस मैप करता है — lazily बनता है
+ * क्योंकि ENG2HI_PS फ़ाइल में बाद में परिभाषित है (टॉप-लेवल पर सीधे एक्सेस करने से लोड-टाइम त्रुटि आती) */
+let _HI2ENG_PS_CACHE=null;
+function hi2engPs(thanaHi){
+  if(!_HI2ENG_PS_CACHE){
+    _HI2ENG_PS_CACHE = (typeof ENG2HI_PS!=='undefined') ? Object.fromEntries(Object.entries(ENG2HI_PS).map(([en,hi])=>[hi,en])) : {};
+  }
+  return _HI2ENG_PS_CACHE[thanaHi];
+}
+
+function apradhCstMatches(catKey, cst){
+  if(catKey==='bnss') return cst==='173(8) CrPC/193(9) BNSS';
+  if(catKey==='reopen') return cst==='REOPEN';
+  if(catKey==='pending') return cst==='UNDER INVESTIGATION' || cst==='' || cst==='REFUSED INVESTIGATION';
+  return false;
+}
+
+/** थाने की FDC ("Current Status") डेटा से एक श्रेणी (pending/bnss/reopen) की सूची बनाता है —
+ * cutoffDate तक दर्ज व उस समय जिस स्थिति के प्रकरण थे उन्हें चुनता है। */
+function buildApradhListFromFDC(catKey, thanaHi, cutoffDate){
+  const psEn = hi2engPs(thanaHi);
+  if(!psEn || typeof FDC==='undefined' || !FDC.rows) return [];
+  const cutoffStr = `${cutoffDate.getFullYear()}-${pad2(cutoffDate.getMonth()+1)}-${pad2(cutoffDate.getDate())}`;
+  const out=[];
+  FDC.rows.forEach(r=>{
+    const ps = FDC.ps[r[1]];
+    if(ps!==psEn) return;
+    const regDt = r[3];
+    if(!regDt || regDt>cutoffStr) return;
+    const cst = FDC.cst[r[10]];
+    if(!apradhCstMatches(catKey, cst)) return;
+    if(catKey==='pending'){
+      const days=Math.round((cutoffDate-new Date(regDt))/86400000);
+      if(days<=365) return;
+    }
+    const act1=FDC.act1[r[4]]||'';
+    const dmy = regDt.split('-').reverse().join('.');
+    const firDisp = (r[2]||'')+(regDt?(' दिनांक '+dmy):'');
+    const row = {fir:firDisp, dhara:act1};
+    if(catKey==='reopen'){ row.aadesh_kiska=''; row.aadesh_no=''; row.karan=''; }
+    else { row.vivaran=''; row.ao=''; row.karan=''; }
+    out.push(row);
+  });
+  return out;
+}
+
+function apGenFromFDC(cutoffMode){
+  if(!entryCtx || entryCtx.branch!=='apradh') return;
+  const cfg=entryCtx._cfg;
+  if(!cfg || cfg.tableMode) return;
+  if(typeof FDC==='undefined' || !FDC.rows || !FDC.rows.length){ toast('⚠️ Current Status (FDC) डेटा अभी लोड नहीं है — इंटरनेट जाँचें या थोड़ी देर बाद कोशिश करें'); return; }
+  let cutoffDate, cutoffLabel;
+  if(cutoffMode==='today'){ cutoffDate=new Date(); cutoffLabel='आज ('+pad2(cutoffDate.getDate())+'.'+pad2(cutoffDate.getMonth()+1)+'.'+cutoffDate.getFullYear()+')'; }
+  else { const now=new Date(); cutoffDate=new Date(now.getFullYear(), now.getMonth(), 0); cutoffLabel=MONTHS[cutoffDate.getMonth()]+' '+cutoffDate.getFullYear()+' के अंत'; }
+  const generated=buildApradhListFromFDC(entryCtx.type, entryCtx.thana, cutoffDate);
+  if(!generated.length){ toast('ℹ️ '+cutoffLabel+' तक — इस थाने के लिए FDC डेटा में कोई मेल खाता प्रकरण नहीं मिला'); return; }
+  const modeEl=document.querySelector('input[name="apFdcMode"]:checked');
+  const mode=modeEl?modeEl.value:'replace';
+  let rows = (mode==='append') ? collectApradhRows().concat(generated) : generated;
+  renderApradhRows(cfg, rows, entryCtx._key);
+  toast('✅ '+cutoffLabel+' तक — '+generated.length+' प्रकरण '+(mode==='append'?'जोड़े गए':'भरे गए')+' — विवरण/कारण खाने जाँच कर भरें');
+}
+
+function apDownloadSample(){
+  const cfg=entryCtx&&entryCtx._cfg;
+  if(!cfg || cfg.tableMode) return;
+  const headers=['पुलिस थाना', ...cfg.cols];
+  const sample=[entryCtx.thana||'थाना का नाम', ...cfg.cols.map(()=>'')];
+  sample[1]='उदाहरण: 123/2025 दिनांक 12.03.2025';
+  downloadStyledXlsx(headers, [sample], 'sample-'+entryCtx.type+'.xlsx', cfg.title, 0);
+  toast('📥 सैंपल फाइल डाउनलोड हो गई');
+}
+
+function apDownloadOldData(){
+  const cfg=entryCtx&&entryCtx._cfg;
+  if(!cfg || cfg.tableMode) return;
+  const rows=collectApradhRows();
+  if(!rows.length){ toast('ℹ️ अभी कोई पंक्ति भरी हुई नहीं है'); return; }
+  const headers=['पुलिस थाना', ...cfg.cols];
+  const aoa=rows.map(r=>[entryCtx.thana, ...cfg.keys.map(k=>r[k]||'')]);
+  downloadStyledXlsx(headers, aoa, 'mojuda-data-'+entryCtx.type+'.xlsx', cfg.title, 0);
+  toast('📥 मौजूदा डेटा डाउनलोड हो गया');
+}
+
+function apUploadXls(){
+  const cfg=entryCtx&&entryCtx._cfg;
+  if(!cfg || cfg.tableMode) return;
+  const fileInput=document.getElementById('apXlsFile');
+  const pasteArea=document.getElementById('apXlsPaste');
+  const statusEl=document.getElementById('apXlsStatus');
+  const modeEl=document.querySelector('input[name="apXlsMode"]:checked');
+  const mode=modeEl?modeEl.value:'replace';
+  statusEl.innerHTML='⏳ लोड हो रहा है...';
+  function apply(aoa){ apApplyUploadedRows(aoa, cfg, mode); }
+  if(fileInput.files && fileInput.files[0]){
+    const file=fileInput.files[0];
+    if(/\.csv$/i.test(file.name)){
+      const reader=new FileReader();
+      reader.onload=function(e){
+        const lines=String(e.target.result).split(/\r?\n/).filter(l=>l.trim().length);
+        const aoa=lines.map(l=> l.indexOf('\t')>-1?l.split('\t'):l.split(','));
+        apply(aoa);
+      };
+      reader.onerror=function(){ statusEl.innerHTML='<span style="color:#b00020">⚠️ फ़ाइल पढ़ने में त्रुटि हुई।</span>'; };
+      reader.readAsText(file);
+    } else {
+      const reader=new FileReader();
+      reader.onload=function(e){
+        try{
+          if(typeof XLSX==='undefined'){ statusEl.innerHTML='<span style="color:#b00020">⚠️ Excel लाइब्रेरी उपलब्ध नहीं — कृपया CSV या पेस्ट विकल्प इस्तेमाल करें।</span>'; return; }
+          const data=new Uint8Array(e.target.result);
+          const wb=XLSX.read(data,{type:'array', cellDates:true});
+          const sheet=wb.Sheets[wb.SheetNames[0]];
+          const aoa=XLSX.utils.sheet_to_json(sheet,{header:1, raw:false, defval:''});
+          apply(aoa);
+        }catch(err){ statusEl.innerHTML='<span style="color:#b00020">⚠️ फ़ाइल पढ़ने में त्रुटि: '+err.message+'</span>'; }
+      };
+      reader.onerror=function(){ statusEl.innerHTML='<span style="color:#b00020">⚠️ फ़ाइल पढ़ने में त्रुटि हुई।</span>'; };
+      reader.readAsArrayBuffer(file);
+    }
+  } else if(pasteArea.value.trim()){
+    const lines=pasteArea.value.split(/\r?\n/).filter(l=>l.trim().length);
+    const aoa=lines.map(l=> l.indexOf('\t')>-1?l.split('\t'):l.split(','));
+    apply(aoa);
+  } else {
+    statusEl.innerHTML='<span style="color:#b00020">⚠️ पहले फाइल चुनें या डेटा पेस्ट करें।</span>';
+  }
+}
+
+function apApplyUploadedRows(aoa, cfg, mode){
+  const getStatus=()=>document.getElementById('apXlsStatus');
+  if(!aoa || aoa.length<2){ const s=getStatus(); if(s) s.innerHTML='<span style="color:#b00020">⚠️ फाइल में डेटा नहीं मिला — कम से कम एक हैडिंग पंक्ति व एक डेटा पंक्ति होनी चाहिए।</span>'; return; }
+  const idx=buildHeaderIndex(aoa[0]);
+  const newRows=[];
+  for(let i=1;i<aoa.length;i++){
+    const raw=aoa[i]; if(!raw || raw.every(c=>c===''||c==null)) continue;
+    const obj={}; let hasAny=false;
+    cfg.cols.forEach((col,ci)=>{
+      const k=cfg.keys[ci];
+      const v=String(colVal(raw, idx, [normHeader(col)])||'').trim();
+      obj[k]=v;
+      if(v) hasAny=true;
+    });
+    if(hasAny) newRows.push(obj);
+  }
+  if(!newRows.length){ const s=getStatus(); if(s) s.innerHTML='<span style="color:#b00020">⚠️ कोई मान्य पंक्ति नहीं मिली — जाँचें कि हैडिंग पंक्ति सैंपल फाइल जैसी ही है।</span>'; return; }
+  const rows=(mode==='append') ? collectApradhRows().concat(newRows) : newRows;
+  renderApradhRows(cfg, rows, entryCtx._key);
+  const s2=document.getElementById('apXlsStatus');
+  if(s2) s2.innerHTML='<span style="color:#1B5E20">✅ '+newRows.length+' पंक्तियाँ '+(mode==='append'?'जोड़ी गईं':'भर दी गईं')+' — जाँच कर \'💾 सेव करें\' दबाएँ।</span>';
+  toast('✅ '+newRows.length+' पंक्तियाँ अपलोड से भर गईं');
 }
 
 function renderApradhRow(cfg,r,i){
@@ -3841,6 +4142,23 @@ function collectApradhRows(){
 }
 
 // ============================================================
+// सम्मन/मालखाना: "माह के शुरू/अंत में पेंडिंग/शेष" जैसे सामान्य लेबल में असली चयनित
+// माह-वर्ष जोड़कर दिखाना (जैसे "अगस्त 2026 के प्रारम्भ में पैंडिंग") — स्क्रीन/प्रिंट/CSV
+// हर जगह लागू; संग्रहीत मूल लेबल (cols में परिभाषित) अपरिवर्तित रहता है।
+// ============================================================
+const MONTH_LBL_PEND_RE = /(लंबित|पेंडिंग|पैंडिंग|पेंडिग|शेष|अवशेष)/;
+const MONTH_LBL_OPEN_RE = /(गत\s*माह|पिछल[ेा]\s*माह|पूर्व\s*माह|माह\s*(की|के)?\s*(प्रारम्भ|शुरुआत|शुरू|आरंभ))/;
+const MONTH_LBL_CLOSE_RE = /(इस\s*माह.*अंत|माह\s*के\s*अंत|माहांत|अंत\s*में|समाप्ति\s*पर)/;
+function monthizeLabel(label, monthName, year){
+  if(!monthName || !year) return label;
+  const wm = MONTH_LBL_PEND_RE.exec(label);
+  if(!wm) return label;
+  if(MONTH_LBL_OPEN_RE.test(label)) return `${monthName} ${year} के प्रारम्भ में ${wm[0]}`;
+  if(MONTH_LBL_CLOSE_RE.test(label)) return `${monthName} ${year} के अंत में ${wm[0]}`;
+  return label;
+}
+
+// ============================================================
 // SUMMON/WARRANT ENTRY
 // ============================================================
 const WARRANT_TYPES=['सम्मन','जमानती','गिरफ्तारी','कुर्की','स्थायी'];
@@ -3927,26 +4245,31 @@ function openSummonEntry(praroop){
     const carried=summonCarryForward(praroop, ctx.thana, ctx.year, ctx.month);
     if(carried) svData=carried;
   }
-  renderSummonTable(schema, svData);
+  renderSummonTable(schema, svData, ctx.monthName, ctx.year);
+  const pullBtnSv=document.getElementById('cp-pull-btn');
+  if(pullBtnSv) pullBtnSv.style.display = isSyncConfigured() ? 'inline-block' : 'none';
+  const shareBtnSv=document.getElementById('entry-share-link-btn');
+  if(shareBtnSv) shareBtnSv.style.display = 'inline-block';
   document.getElementById('entry-overlay').classList.add('on');
   document.body.style.overflow='hidden';
 }
 
-function renderSummonTable(schema, data){
+function renderSummonTable(schema, data, monthName, year){
   const cols=schema.cols;
   let th='<th class="desc-th">वारंट प्रकार</th>';
-  cols.forEach(c=>{ th+=`<th>${c.label}</th>`; });
+  cols.forEach(c=>{ th+=`<th>${monthizeLabel(c.label, monthName, year)}</th>`; });
 
   let rows='';
   WARRANT_TYPES.forEach((wt,wi)=>{
     const wk=WARRANT_KEYS[wi];
     let tds=`<td class="desc-td">${wt}</td>`;
     cols.forEach(c=>{
+      const dl=monthizeLabel(c.label, monthName, year);
       if(c.auto){
-        tds+=`<td class="auto-td" data-label="${escHtml(c.label)}" id="sc_${wk}_${c.k}">—</td>`;
+        tds+=`<td class="auto-td" data-label="${escHtml(dl)}" id="sc_${wk}_${c.k}">—</td>`;
       } else {
         const v=(data[wk]&&data[wk][c.k])||'';
-        tds+=`<td data-label="${escHtml(c.label)}"><input type="number" min="0" value="${escHtml(v)}" id="si_${wk}_${c.k}" oninput="recalcSummon('${wk}')" placeholder="0"></td>`;
+        tds+=`<td data-label="${escHtml(dl)}"><input type="number" min="0" value="${escHtml(v)}" id="si_${wk}_${c.k}" oninput="recalcSummon('${wk}')" placeholder="0"></td>`;
       }
     });
     rows+=`<tr>${tds}</tr>`;
@@ -3955,7 +4278,7 @@ function renderSummonTable(schema, data){
   // Yog row
   let yogTds=`<td class="desc-td yog-td" style="background:#FFF7E6;font-weight:700">योग</td>`;
   cols.forEach(c=>{
-    yogTds+=`<td class="auto-td" data-label="${escHtml(c.label)}" id="sc_yog_${c.k}" style="background:#FFF7E6">—</td>`;
+    yogTds+=`<td class="auto-td" data-label="${escHtml(monthizeLabel(c.label, monthName, year))}" id="sc_yog_${c.k}" style="background:#FFF7E6">—</td>`;
   });
   rows+=`<tr class="yog-row">${yogTds}</tr>`;
 
@@ -4268,12 +4591,16 @@ function openMalkhanaEntry(fmtKey){
     const carried=malkhanaCarryForward(fmtKey, ctx.thana, ctx.year, ctx.month);
     if(carried) mkData=carried;
   }
-  renderMalkhanaTable(cfg, mkData);
+  renderMalkhanaTable(cfg, mkData, ctx.monthName, ctx.year);
+  const pullBtnMk=document.getElementById('cp-pull-btn');
+  if(pullBtnMk) pullBtnMk.style.display = isSyncConfigured() ? 'inline-block' : 'none';
+  const shareBtnMk=document.getElementById('entry-share-link-btn');
+  if(shareBtnMk) shareBtnMk.style.display = 'inline-block';
   document.getElementById('entry-overlay').classList.add('on');
   document.body.style.overflow='hidden';
 }
 
-function renderMalkhanaTable(cfg, data){
+function renderMalkhanaTable(cfg, data, monthName, year){
   const cols=cfg.cols, rows=cfg.rows;
   const hasGrp=cols.some(c=>c.grp);
   let extraHtml='';
@@ -4300,10 +4627,10 @@ function renderMalkhanaTable(cfg, data){
       } else { groups.push({label:'',span:1}); i++; }
     }
     let topRow='<th class="desc-th" rowspan="2"></th>'+groups.map(g=>`<th colspan="${g.span}">${g.label||'&nbsp;'}</th>`).join('')+(cfg.hasYogCol?'<th rowspan="2">योग</th>':'');
-    let botRow=cols.map(c=>`<th>${c.label}</th>`).join('');
+    let botRow=cols.map(c=>`<th>${monthizeLabel(c.label, monthName, year)}</th>`).join('');
     theadHtml=`<tr>${topRow}</tr><tr>${botRow}</tr>`;
   } else {
-    let th=`<th class="desc-th">${cfg.descLabel||'विवरण'}</th>`+cols.map(c=>`<th>${c.label}</th>`).join('');
+    let th=`<th class="desc-th">${cfg.descLabel||'विवरण'}</th>`+cols.map(c=>`<th>${monthizeLabel(c.label, monthName, year)}</th>`).join('');
     theadHtml=`<tr>${th}</tr>`;
   }
 
@@ -4313,7 +4640,7 @@ function renderMalkhanaTable(cfg, data){
     let tds=`<td class="desc-td${isAutoRow?' yog-td':''}"${isAutoRow?' style="background:#FFF7E6;font-weight:700"':''}>${row.label}</td>`;
     cols.forEach(c=>{
       const id='mk_'+row.k+'_'+c.k;
-      const dl=c.grp?c.grp+' - '+c.label:c.label;
+      const dl=c.grp?c.grp+' - '+monthizeLabel(c.label, monthName, year):monthizeLabel(c.label, monthName, year);
       if(isAutoRow || c.auto){
         tds+=`<td class="auto-td" data-label="${escHtml(dl)}" id="${id}">—</td>`;
       } else {
@@ -4331,7 +4658,7 @@ function renderMalkhanaTable(cfg, data){
   let footHtml='';
   if(rows.length>1 && !rows.some(r=>r.autoRow) ){
     let tds=`<td class="desc-td yog-td" style="background:#FFF7E6;font-weight:700">योग</td>`;
-    cols.forEach(c=>{ const dl=c.grp?c.grp+' - '+c.label:c.label; tds+=`<td class="auto-td" data-label="${escHtml(dl)}" id="mk_coltotal_${c.k}" style="background:#FFF7E6">—</td>`; });
+    cols.forEach(c=>{ const dl=c.grp?c.grp+' - '+monthizeLabel(c.label, monthName, year):monthizeLabel(c.label, monthName, year); tds+=`<td class="auto-td" data-label="${escHtml(dl)}" id="mk_coltotal_${c.k}" style="background:#FFF7E6">—</td>`; });
     if(cfg.hasYogCol) tds+=`<td class="auto-td" data-label="योग" id="mk_coltotal_rowyog" style="background:#FFF7E6">—</td>`;
     footHtml=`<tr class="yog-row">${tds}</tr>`;
   }
@@ -4516,6 +4843,8 @@ function closeEntry(){
   document.getElementById('next-fmt-panel').style.display='none';
   const pullBtn=document.getElementById('cp-pull-btn');
   if(pullBtn) pullBtn.style.display='none';
+  const shareBtn=document.getElementById('entry-share-link-btn');
+  if(shareBtn) shareBtn.style.display='none';
   entryCtx=null;
 }
 
@@ -4625,20 +4954,20 @@ function printData(data,branch,type,thana,monthName,year){
   } else if(branch==='summon'){
     const schema=SUMMON_SCHEMAS[type];
     title=schema.title;
-    tableHTML=buildSummonPrintTable(schema, data.data||{});
+    tableHTML=buildSummonPrintTable(schema, data.data||{}, monthName, year);
   } else {
     const cfg=MALKHANA_FORMATS[type];
     title=cfg.title;
-    tableHTML=buildMalkhanaPrintTable(cfg, data.data||{}, thana);
+    tableHTML=buildMalkhanaPrintTable(cfg, data.data||{}, thana, monthName, year);
   }
 
   const subtitle=`${thana} — ${monthName} ${year} | सेव किया: ${data.savedAt||''}`;
   openPrintPreview(title, subtitle, tableHTML);
 }
 
-function buildSummonPrintTable(schema,data){
+function buildSummonPrintTable(schema,data,monthName,year){
   const cols=schema.cols;
-  let th=`<th>वारंट प्रकार</th>${cols.map(c=>`<th>${c.label}</th>`).join('')}`;
+  let th=`<th>वारंट प्रकार</th>${cols.map(c=>`<th>${monthizeLabel(c.label, monthName, year)}</th>`).join('')}`;
   let rows='';
   WARRANT_TYPES.forEach((wt,wi)=>{
     const wk=WARRANT_KEYS[wi];
@@ -4719,7 +5048,7 @@ function mkComputeFull(cfg, data){
   return {grid,rowYog,colTotal};
 }
 
-function buildMalkhanaPrintTable(cfg, data, thana){
+function buildMalkhanaPrintTable(cfg, data, thana, monthName, year){
   const cols=cfg.cols, rows=cfg.rows;
   const {grid,rowYog,colTotal}=mkComputeFull(cfg,data);
   const hasGrp=cols.some(c=>c.grp);
@@ -4737,10 +5066,10 @@ function buildMalkhanaPrintTable(cfg, data, thana){
       else { groups.push({label:'',span:1}); i++; }
     }
     let topRow='<th rowspan="2">'+(cfg.descLabel||'विवरण')+'</th>'+groups.map(g=>`<th colspan="${g.span}">${g.label||''}</th>`).join('')+(cfg.hasYogCol?'<th rowspan="2">योग</th>':'');
-    let botRow=cols.map(c=>`<th>${c.label}</th>`).join('');
+    let botRow=cols.map(c=>`<th>${monthizeLabel(c.label, monthName, year)}</th>`).join('');
     thead=`<tr style="background:#E5484D;color:white">${topRow}</tr><tr style="background:#E5484D;color:white">${botRow}</tr>`;
   } else {
-    thead=`<tr style="background:#E5484D;color:white"><th>${cfg.descLabel||'विवरण'}</th>${cols.map(c=>`<th>${c.label}</th>`).join('')}</tr>`;
+    thead=`<tr style="background:#E5484D;color:white"><th>${cfg.descLabel||'विवरण'}</th>${cols.map(c=>`<th>${monthizeLabel(c.label, monthName, year)}</th>`).join('')}</tr>`;
   }
   let tbody='';
   rows.forEach(row=>{
@@ -4785,7 +5114,7 @@ function downloadCSV(data,branch,type,thana,monthName,year){
   } else if(branch==='malkhana'){
     const cfg=MALKHANA_FORMATS[type];
     const {grid,rowYog,colTotal}=mkComputeFull(cfg, data.data||{});
-    let hdr=[cfg.descLabel||'विवरण',...cfg.cols.map(c=>c.label)];
+    let hdr=[cfg.descLabel||'विवरण',...cfg.cols.map(c=>monthizeLabel(c.label, monthName, year))];
     if(cfg.hasYogCol) hdr.push('योग');
     csv=hdr.map(csvEsc).join(',')+'\n';
     if(cfg.extraField) csv=cfg.extraField.label+': '+csvEsc((data.data||{})[cfg.extraField.k]||'')+'\n'+csv;
@@ -4801,7 +5130,7 @@ function downloadCSV(data,branch,type,thana,monthName,year){
     }
   } else {
     const schema=SUMMON_SCHEMAS[type];
-    csv='वारंट प्रकार,'+schema.cols.map(c=>c.label).join(',')+'\n';
+    csv='वारंट प्रकार,'+schema.cols.map(c=>monthizeLabel(c.label, monthName, year)).join(',')+'\n';
     WARRANT_TYPES.forEach((wt,wi)=>{
       const wk=WARRANT_KEYS[wi];
       const d=(data.data||{})[wk]||{};
@@ -4818,13 +5147,13 @@ function downloadExcelLike(data,branch,type,thana,monthName,year){
   let tableHTML='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8">'+style+'</head><body>';
   tableHTML+=`<h2 style="font-family:Arial;">राजस्थान पुलिस — SP कार्यालय, डीडवाना-कुचामन</h2>`;
   tableHTML+=`<p style="font-family:Arial;">थाना: ${escHtml(thana)} | माह: ${escHtml(monthName)} ${escHtml(String(year))}</p>`;
-  tableHTML+=buildExcelTable(data,branch,type,thana);
+  tableHTML+=buildExcelTable(data,branch,type,thana,monthName,year);
   tableHTML+='</body></html>';
   dlBlob(tableHTML,'application/vnd.ms-excel',`${branch}_${thana}_${monthName}_${year}.xls`);
   toast('✅ Excel फाइल डाउनलोड हो रही है');
 }
 
-function buildExcelTable(data,branch,type,thana){
+function buildExcelTable(data,branch,type,thana,monthName,year){
   const tblOpen='<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px">';
   if(branch==='apradh'){
     const cfg=APRADH_TYPES[type];
@@ -4838,10 +5167,10 @@ function buildExcelTable(data,branch,type,thana){
     return t+'</table>';
   } else if(branch==='malkhana'){
     const cfg=MALKHANA_FORMATS[type];
-    return buildMalkhanaPrintTable(cfg, data.data||{}, thana);
+    return buildMalkhanaPrintTable(cfg, data.data||{}, thana, monthName, year);
   } else {
     const schema=SUMMON_SCHEMAS[type];
-    let t=`${tblOpen}<tr bgcolor="#F59E0B"><td style="color:white"><b>वारंट प्रकार</b></td>${schema.cols.map(c=>`<td style="color:white"><b>${c.label}</b></td>`).join('')}</tr>`;
+    let t=`${tblOpen}<tr bgcolor="#F59E0B"><td style="color:white"><b>वारंट प्रकार</b></td>${schema.cols.map(c=>`<td style="color:white"><b>${monthizeLabel(c.label, monthName, year)}</b></td>`).join('')}</tr>`;
     WARRANT_TYPES.forEach((wt,wi)=>{
       const wk=WARRANT_KEYS[wi];
       const d=(data.data||{})[wk]||{};
@@ -5040,11 +5369,11 @@ function viewThanaData(branch,fmtKey,thana,y,m){
   } else if(branch==='summon'){
     const schema=SUMMON_SCHEMAS[fmtKey];
     title=schema.title;
-    tableHTML=buildSummonPrintTable(schema, data.data||{});
+    tableHTML=buildSummonPrintTable(schema, data.data||{}, data.monthName, data.year);
   } else {
     const cfg=MALKHANA_FORMATS[fmtKey];
     title=cfg.title;
-    tableHTML=buildMalkhanaPrintTable(cfg, data.data||{}, thana);
+    tableHTML=buildMalkhanaPrintTable(cfg, data.data||{}, thana, data.monthName, data.year);
   }
 
   const subtitle=`${thana} — ${data.monthName||''} ${data.year||''} | अपडेट: ${data.savedAt||''}`;
@@ -8385,34 +8714,57 @@ const PM_MIN_CASES = 3; // रैंकिंग हेतु न्यूनत
 function pmGroupKey(ps, groupBy){ return groupBy==='circle' ? dispCircleOf(ps) : ps; }
 function pmGroupLabel(key, groupBy){ return groupBy==='circle' ? key : (ENG2HI_PS[key]||key); }
 
+// किसी अभिलेख की स्थिति (60-दिवस अनुपालना नियम अनुसार) किसी दी गई तिथि तक — 'onTime'|'late'|'pendingWithin'|'pendingOverdue'
+function pmDispositionAsOf(r, asOfDate){
+  const status = statusAsOf(r, asOfDate);
+  if(status!=='Pending'){
+    if(!r.date || !r.csDate) return 'late'; // तिथि अनुपलब्ध — सुरक्षित मानते हुए विलंबित गिनें
+    const dd = Math.round((new Date(r.csDate)-new Date(r.date))/86400000);
+    return dd<=60 ? 'onTime' : 'late';
+  } else {
+    if(!r.date) return 'pendingOverdue';
+    const daysPending = Math.round((new Date(asOfDate)-new Date(r.date))/86400000);
+    return daysPending<=60 ? 'pendingWithin' : 'pendingOverdue';
+  }
+}
+
 // किसी एक हेड (या 'ALL' सभी हेड मिलाकर) के लिए थाना/वृत्त-वार निष्पादन आँकड़े
+// अनुपालन % = राजस्थान पुलिस के आधिकारिक फॉर्मूले अनुसार — 60 दिन में निस्तारित ÷
+// (60 दिन में निस्तारित + 60 दिन बाद निस्तारित + 60 दिन से अधिक Pending) × 100
+// — केवल "निस्तारित" होना पर्याप्त नहीं; निस्तारण 60 दिन के भीतर (चार्जशीट दिनांक − FIR दिनांक) होना चाहिए
 function buildPerfStats(headKey, groupBy, windowDays){
   const cutoff = isoDaysAgo(windowDays);
+  const now = isoDaysAgo(0);
   const heads = headKey==='ALL' ? ALL_CAT_FIELDS : [headKey];
   const base = filterByPS(dbRecords).filter(r=> heads.some(h=>!!r[h]));
   const groups = {};
   base.forEach(r=>{
-    if(!r.date || r.date > isoDaysAgo(0)) return; // भविष्य/अमान्य तिथि सुरक्षा
+    if(!r.date || r.date > now) return; // भविष्य/अमान्य तिथि सुरक्षा
     if(r.date > cutoff) return; // universe में केवल वे प्रकरण जो कटऑफ तक दर्ज हो चुके थे
     const key = pmGroupKey(r.ps, groupBy);
-    if(!groups[key]) groups[key] = {key, universe:0, disposedThen:0, disposedNow:0};
+    if(!groups[key]) groups[key] = {key, universe:0, onTimeThen:0, lateThen:0, overdueThen:0, onTimeNow:0, lateNow:0, overdueNow:0};
     const g = groups[key];
     g.universe++;
-    if(statusAsOf(r, cutoff)!=='Pending') g.disposedThen++;
-    if(r.disposal!=='Pending') g.disposedNow++;
+    const dThen = pmDispositionAsOf(r, cutoff);
+    if(dThen==='onTime') g.onTimeThen++; else if(dThen==='late') g.lateThen++; else if(dThen==='pendingOverdue') g.overdueThen++;
+    const dNow = pmDispositionAsOf(r, now);
+    if(dNow==='onTime') g.onTimeNow++; else if(dNow==='late') g.lateNow++; else if(dNow==='pendingOverdue') g.overdueNow++;
   });
   const list = Object.values(groups).map(g=>{
     g.label = pmGroupLabel(g.key, groupBy);
+    g.disposedNow = g.onTimeNow + g.lateNow;
     g.pendingNow = g.universe - g.disposedNow;
-    g.workDone = g.disposedNow - g.disposedThen;
+    g.workDone = g.disposedNow - (g.onTimeThen+g.lateThen);
     g.eligible = g.universe >= PM_MIN_CASES;
-    g.compNow = g.universe ? g.disposedNow/g.universe*100 : 0;
-    g.compThen = g.universe ? g.disposedThen/g.universe*100 : 0;
+    const denomNow = g.onTimeNow+g.lateNow+g.overdueNow;
+    const denomThen = g.onTimeThen+g.lateThen+g.overdueThen;
+    g.compNow = denomNow ? g.onTimeNow/denomNow*100 : 0;
+    g.compThen = denomThen ? g.onTimeThen/denomThen*100 : 0;
     return g;
   });
   // शून्य-डेटा वाले समूह (उस हेड में कोई प्रकरण नहीं) भी सूची में शामिल करें ताकि "कोई डेटा नहीं" स्पष्ट दिखे
   const allKeys = groupBy==='circle' ? DISP_CIRCLE_ORDER.slice() : ALL_PS_EN.slice();
-  allKeys.forEach(k=>{ if(!groups[k]) list.push({key:k, label:pmGroupLabel(k,groupBy), universe:0, disposedThen:0, disposedNow:0, pendingNow:0, workDone:0, eligible:false, compNow:0, compThen:0}); });
+  allKeys.forEach(k=>{ if(!groups[k]) list.push({key:k, label:pmGroupLabel(k,groupBy), universe:0, disposedNow:0, pendingNow:0, workDone:0, eligible:false, compNow:0, compThen:0}); });
 
   const eligible = list.filter(g=>g.eligible);
   const rankedNow = [...eligible].sort((a,b)=>b.compNow-a.compNow);
@@ -8429,41 +8781,67 @@ function buildPerfStats(headKey, groupBy, windowDays){
 }
 
 // SLL अंतर्गत आबकारी/जुआ/आर्म्स/NDPS — किस थाने/वृत्त ने चालू वर्ष में सर्वाधिक कार्यवाही (गिनती) की, उसकी रैंकिंग
+// SLL अंतर्गत आबकारी/जुआ/आर्म्स/NDPS — गत वर्ष की समान अवधि (01 जनवरी–आज) की तुलना में इस वर्ष
+// दर्ज प्रकरणों में % वृद्धि/कमी — वृद्धि = सकारात्मक (बेहतर रैंक), कमी = नकारात्मक
 function buildSLLSubRanking(groupBy){
-  const CYnow = new Date().getFullYear();
-  const base = filterByPS(dbRecords).filter(r=> !!r.sll && r.year===CYnow);
+  const todayD = new Date();
+  const CYnow = todayD.getFullYear();
+  const CYprev = CYnow - 1;
+  const mmdd = `${pad2(todayD.getMonth()+1)}-${pad2(todayD.getDate())}`;
+  const base = filterByPS(dbRecords).filter(r=> !!r.sll && r.date && (r.year===CYnow || r.year===CYprev));
   const groups = {};
   base.forEach(r=>{
     const cat = awMatchCat(r.sll);
     if(!cat) return;
     const key = pmGroupKey(r.ps, groupBy);
-    if(!groups[key]) groups[key] = {key, counts:{}};
-    groups[key].counts[cat] = (groups[key].counts[cat]||0)+1;
+    if(!groups[key]) groups[key] = {key, now:{}, prev:{}};
+    const g = groups[key];
+    const recMMDD = r.date.slice(5); // 'MM-DD'
+    if(recMMDD>mmdd) return; // दोनों वर्षों में सिर्फ आज तक की समान अवधि (उचित तुलना हेतु)
+    if(r.year===CYnow) g.now[cat]=(g.now[cat]||0)+1;
+    else g.prev[cat]=(g.prev[cat]||0)+1;
   });
   const allKeys = groupBy==='circle' ? DISP_CIRCLE_ORDER.slice() : ALL_PS_EN.slice();
-  allKeys.forEach(k=>{ if(!groups[k]) groups[k] = {key:k, counts:{}}; });
+  allKeys.forEach(k=>{ if(!groups[k]) groups[k] = {key:k, now:{}, prev:{}}; });
   const list = Object.values(groups).map(g=>({...g, label:pmGroupLabel(g.key, groupBy)}));
-  const ranks = {};
+  const ranks = {}, pctChange = {};
   AW_CATS.forEach(cat=>{
-    const sorted = [...list].sort((a,b)=>(b.counts[cat]||0)-(a.counts[cat]||0));
-    sorted.forEach((g,i)=>{ ranks[g.key] = ranks[g.key] || {}; ranks[g.key][cat] = (g.counts[cat]||0)>0 ? i+1 : null; });
+    list.forEach(g=>{
+      const nowC=g.now[cat]||0, prevC=g.prev[cat]||0;
+      let pct;
+      if(prevC===0 && nowC===0) pct=null;
+      else if(prevC===0) pct=Infinity; // गत वर्ष शून्य, इस वर्ष कोई भी दर्ज — नई शुरुआत, सर्वाधिक सकारात्मक
+      else pct=((nowC-prevC)/prevC)*100;
+      pctChange[g.key]=pctChange[g.key]||{};
+      pctChange[g.key][cat]=pct;
+    });
+    const withData = list.filter(g=>pctChange[g.key][cat]!=null);
+    const sorted = [...withData].sort((a,b)=>pctChange[b.key][cat]-pctChange[a.key][cat]);
+    sorted.forEach((g,i)=>{ ranks[g.key]=ranks[g.key]||{}; ranks[g.key][cat]=i+1; });
   });
   list.sort((a,b)=>a.label.localeCompare(b.label));
-  return {list, ranks, year:CYnow, total:list.length};
+  return {list, ranks, pctChange, year:CYnow, prevYear:CYprev, mmdd, total:list.length};
 }
 function pmRenderSLLSubPanel(groupBy){
-  const {list, ranks, year, total} = buildSLLSubRanking(groupBy);
+  const {list, ranks, pctChange, year, prevYear, mmdd, total} = buildSLLSubRanking(groupBy);
   const groupLabel = groupBy==='circle' ? 'वृत्त' : 'थाना';
-  let h = `<h3 style="font-size:15px;margin:18px 0 6px;">🍾🎲🔫💊 SLL उप-श्रेणी — अधिक कार्यवाही रैंकिंग (${year}, अब तक)</h3>`;
-  h += `<div class="note" style="margin-bottom:8px;">इन चार श्रेणियों में जिस थाने/वृत्त ने चालू वर्ष में सर्वाधिक प्रकरण दर्ज किए (अधिक सक्रिय कार्यवाही), उसकी रैंक 1 है। रैंक न होने का अर्थ है उस श्रेणी में अब तक कोई प्रकरण दर्ज नहीं।</div>`;
-  h += `<div style="overflow-x:auto;"><table class="data-tbl"><thead><tr><th class="desc-th">${groupLabel}</th>${AW_CATS.map(c=>`<th>${AW_CATS_HI[c]}</th>`).join('')}</tr></thead><tbody>`;
+  let h = `<h3 style="font-size:15px;margin:18px 0 6px;">🍾🎲🔫💊 SLL उप-श्रेणी — गत वर्ष की तुलना में वृद्धि/कमी रैंकिंग (${prevYear} बनाम ${year}, दोनों 01 जनवरी–${mmdd} तक)</h3>`;
+  h += `<div class="note" style="margin-bottom:8px;">इन चार श्रेणियों में गत वर्ष की समान अवधि (01 जनवरी–${mmdd}) की तुलना में इस वर्ष दर्ज प्रकरणों में जितनी अधिक <b>वृद्धि</b> (%), उतना बेहतर प्रदर्शन (अधिक सक्रिय कार्यवाही) माना जाता है — वृद्धि = सकारात्मक (हरा), कमी = नकारात्मक (लाल)। रैंक 1 = सर्वाधिक वृद्धि। "–" का अर्थ है दोनों वर्ष कोई प्रकरण दर्ज नहीं हुआ।</div>`;
+  h += `<div style="overflow-x:auto;"><table class="data-tbl"><thead><tr><th class="desc-th">${groupLabel}</th>${AW_CATS.map(c=>`<th>${AW_CATS_HI[c]}<br><small style="font-weight:400">(${prevYear}→${year})</small></th>`).join('')}</tr></thead><tbody>`;
   list.forEach(g=>{
     h += `<tr><td class="desc-td"><b>${escHtml(g.label)}</b></td>`;
     AW_CATS.forEach(cat=>{
-      const cnt = g.counts[cat]||0;
-      const rk = ranks[g.key] && ranks[g.key][cat];
+      const nowC=g.now[cat]||0, prevC=g.prev[cat]||0;
+      const pct=pctChange[g.key][cat];
+      const rk=ranks[g.key] && ranks[g.key][cat];
+      let pctDisp, color;
+      if(pct==null){ pctDisp='–'; color='#8a8a8a'; }
+      else if(pct===Infinity){ pctDisp='नया ▲'; color='#1B5E20'; }
+      else if(pct>0){ pctDisp='+'+pct.toFixed(1)+'% ▲'; color='#1B5E20'; }
+      else if(pct<0){ pctDisp=pct.toFixed(1)+'% ▼'; color='#B71C1C'; }
+      else { pctDisp='0% ➖'; color='#8a8a8a'; }
       const top3 = rk && rk<=3;
-      h += `<td style="text-align:center;${top3?'background:#F1F8F2;color:#1B5E20;font-weight:700;':''}">${cnt}${rk?` <small>(रैंक ${rk}/${total})</small>`:''}</td>`;
+      h += `<td style="text-align:center;${top3?'background:#F1F8F2;':''}"><span style="color:${color};font-weight:700">${pctDisp}</span><br><small>${prevC}→${nowC}${rk?` (रैंक ${rk}/${total})`:''}</small></td>`;
     });
     h += `</tr>`;
   });
@@ -8541,14 +8919,99 @@ function pmRowStyle(g){
   if(g.rankChange<0) return 'background:#FDF2F2;';
   return '';
 }
-function pmMiniTable(list, groupLabel){
+function pmMiniTable(list, groupLabel, metricLabel){
+  metricLabel = metricLabel || 'अनुपालन %';
   if(!list.length) return `<div class="note">कोई पात्र ${groupLabel} नहीं मिला (न्यूनतम ${PM_MIN_CASES} प्रकरण आवश्यक)।</div>`;
-  let h = `<table class="data-tbl"><thead><tr><th>${groupLabel}</th><th>अनुपालन % (अभी)</th><th>अनुपालन % (पूर्व)</th><th>रैंक बदलाव</th></tr></thead><tbody>`;
+  let h = `<table class="data-tbl"><thead><tr><th>${groupLabel}</th><th>${metricLabel} (अभी)</th><th>${metricLabel} (पूर्व)</th><th>रैंक बदलाव</th></tr></thead><tbody>`;
   list.forEach(g=>{
     h += `<tr style="${pmRowStyle(g)}"><td class="desc-td">${g.label}</td><td><b>${pctFmt(g.compNow)}</b></td><td>${pctFmt(g.compThen)}</td><td>${pmTrendBadge(g)}</td></tr>`;
   });
   return h+'</tbody></table>';
 }
+// पेंडेंसी हेड — सभी श्रेणियाँ मिलाकर, थाना/वृत्त-वार पेंडेंसी % (कम = बेहतर रैंक), समय-तुलना सहित
+function buildPendencyStats(groupBy, windowDays){
+  const cutoff = isoDaysAgo(windowDays);
+  const now = isoDaysAgo(0);
+  const base = filterByPS(dbRecords);
+  const groups = {};
+  base.forEach(r=>{
+    if(!r.date || r.date > now) return;
+    if(r.date > cutoff) return;
+    const key = pmGroupKey(r.ps, groupBy);
+    if(!groups[key]) groups[key] = {key, universe:0, pendingThen:0, pendingNow:0};
+    const g = groups[key];
+    g.universe++;
+    if(statusAsOf(r, cutoff)==='Pending') g.pendingThen++;
+    if(r.disposal==='Pending') g.pendingNow++;
+  });
+  const list = Object.values(groups).map(g=>{
+    g.label = pmGroupLabel(g.key, groupBy);
+    g.disposedNow = g.universe - g.pendingNow;
+    g.workDone = g.pendingThen - g.pendingNow; // पेंडेंसी घटी = धनात्मक = अच्छा
+    g.eligible = g.universe >= PM_MIN_CASES;
+    g.compNow = g.universe ? g.pendingNow/g.universe*100 : 0; // यहाँ "पेंडेंसी %" — कम=अच्छा
+    g.compThen = g.universe ? g.pendingThen/g.universe*100 : 0;
+    return g;
+  });
+  const allKeys = groupBy==='circle' ? DISP_CIRCLE_ORDER.slice() : ALL_PS_EN.slice();
+  allKeys.forEach(k=>{ if(!groups[k]) list.push({key:k, label:pmGroupLabel(k,groupBy), universe:0, disposedNow:0, pendingNow:0, workDone:0, eligible:false, compNow:0, compThen:0}); });
+
+  const eligible = list.filter(g=>g.eligible);
+  const rankedNow = [...eligible].sort((a,b)=>a.compNow-b.compNow); // कम पेंडेंसी% = बेहतर रैंक
+  const rankedThen = [...eligible].sort((a,b)=>a.compThen-b.compThen);
+  rankedNow.forEach((g,i)=>g.rankNow=i+1);
+  rankedThen.forEach((g,i)=>g.rankThen=i+1);
+  eligible.forEach(g=>{ g.rankChange = g.rankThen - g.rankNow; g.total = eligible.length; });
+
+  list.sort((a,b)=>{
+    if(a.eligible && b.eligible) return a.rankNow-b.rankNow;
+    return (b.eligible?1:0) - (a.eligible?1:0);
+  });
+  return list;
+}
+
+// 60/90-दिवस निस्तारण हेड — मौजूदा 60/90-दिवस डैशबोर्ड जैसा ही स्रोत (Generic) व फॉर्मूला प्रयोग करता है।
+// यह एक स्नैपशॉट रैंकिंग है (उसी GEN डेटा पर आधारित) — इसमें समय-तुलना (कटऑफ अवधि) उपलब्ध नहीं,
+// क्योंकि स्रोत डेटा में पिछली तारीख की स्थिति दोबारा नहीं निकाली जा सकती।
+function pmRenderSnapshotHead(limit, groupBy){
+  const agg = aggregateDisposal(buildRowsGeneric(limit, null), limit);
+  const groupLabel = groupBy==='circle' ? 'वृत्त' : 'थाना';
+  const items = groupBy==='circle' ? agg.circles : agg.stations;
+  const eligibleItems = items.filter(x=>x.c1>0).sort((a,b)=> (a.rank==='-'?999:a.rank)-(b.rank==='-'?999:b.rank));
+  const naItems = items.filter(x=>x.c1===0);
+  let h = `<div class="note" style="margin-bottom:12px;">⚠️ यह ${limit}-दिवस श्रेणी की <b>वर्तमान स्नैपशॉट रैंकिंग</b> है (उसी डेटा-स्रोत पर आधारित जो 60/90-दिवस डैशबोर्ड में प्रयुक्त होता है) — इसमें ऊपर वाले हेड्स जैसी "पिछले N दिनों में रैंक सुधार/गिरावट" तुलना उपलब्ध नहीं है।</div>`;
+  h += `<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+    <div class="chip" style="cursor:default;">कुल पात्र ${groupLabel}: <b>${eligibleItems.length}</b></div>
+    <div class="chip" style="cursor:default;">जिला औसत अनुपालन %: <b>${agg.district.compPct.toFixed(2)}%</b></div>
+  </div>`;
+  h += `<h3 style="font-size:15px;margin:0 0 8px;">📋 ${limit} दिवस श्रेणी — ${groupLabel}-वार अनुपालन रैंकिंग</h3>`;
+  h += `<div style="overflow-x:auto;"><table class="data-tbl"><thead><tr>
+    <th>रैंक</th><th class="desc-th">${groupLabel}</th>${groupBy==='ps'?'<th class="desc-th">वृत्त</th>':''}<th>कुल प्रकरण</th><th>समय पर निस्तारित</th><th>विलंबित निस्तारित</th><th>${limit}+ दिन Pending</th><th>अनुपालन %</th>
+  </tr></thead><tbody>`;
+  eligibleItems.forEach(x=>{
+    const label = groupBy==='circle' ? x.circle : (x.hi||x.ps);
+    h += `<tr>
+      <td>${rankMedal(x.rank)}</td>
+      <td class="desc-td"><b>${escHtml(label)}</b></td>
+      ${groupBy==='ps'?`<td class="desc-td">${escHtml(x.circle)}</td>`:''}
+      <td>${x.c1}</td>
+      <td style="color:#1B5E20">${x.c2}</td>
+      <td style="color:#B45309">${x.c3}</td>
+      <td style="color:#B71C1C">${x.c5}</td>
+      <td><b style="color:${compPctColor(x.compPct)}">${x.compPct.toFixed(1)}%</b></td>
+    </tr>`;
+  });
+  naItems.forEach(x=>{
+    const label = groupBy==='circle' ? x.circle : (x.hi||x.ps);
+    h += `<tr style="background:#FAFAFA;color:var(--soft)"><td>-</td><td class="desc-td">${escHtml(label)}</td>${groupBy==='ps'?`<td class="desc-td">${escHtml(x.circle||'')}</td>`:''}<td>0</td><td>0</td><td>0</td><td>0</td><td>N/A</td></tr>`;
+  });
+  h += `</tbody></table></div>`;
+  h += `<div class="note" style="margin-top:10px;">"अनुपालन %" = समय पर निस्तारित ÷ (समय पर निस्तारित + विलंबित निस्तारित + ${limit}+ दिन Pending) × 100 — यही डेटा-स्रोत व फॉर्मूला 60/90-दिवस डैशबोर्ड में भी प्रयुक्त होता है (${limit}-दिवस श्रेणी गंभीरता के अनुसार पहले ही वर्गीकृत — देखें "60/90 दिवस अनुपालन" पेज)।</div>`;
+  window._pmLastList = null;
+  window._pmSnapshotAgg = agg; window._pmSnapshotMeta = {limit, groupBy, groupLabel};
+  return h;
+}
+
 function renderPerfMonitor(){
   const headKey = document.getElementById('pm-head').value;
   const groupBy = document.getElementById('pm-group').value;
@@ -8556,7 +9019,16 @@ function renderPerfMonitor(){
   const groupLabel = groupBy==='circle' ? 'वृत्त' : 'थाना';
   const cutoffLabel = isoDaysAgo(windowDays);
 
-  const list = buildPerfStats(headKey, groupBy, windowDays);
+  if(headKey==='disp60head' || headKey==='disp90head'){
+    const limit = headKey==='disp60head' ? 60 : 90;
+    document.getElementById('pm-result').innerHTML = pmRenderSnapshotHead(limit, groupBy);
+    window._pmLastMeta = {headKey, groupBy, windowDays, groupLabel, cutoffLabel, snapshot:true};
+    return;
+  }
+
+  const isPendency = headKey==='pendencyhead';
+  const list = isPendency ? buildPendencyStats(groupBy, windowDays) : buildPerfStats(headKey, groupBy, windowDays);
+  const metricLabel = isPendency ? 'पेंडेंसी %' : 'अनुपालन %';
   const eligible = list.filter(g=>g.eligible);
   const improved = eligible.filter(g=>g.rankChange>0).sort((a,b)=>b.rankChange-a.rankChange);
   const declined = eligible.filter(g=>g.rankChange<0).sort((a,b)=>a.rankChange-b.rankChange);
@@ -8571,14 +9043,14 @@ function renderPerfMonitor(){
   </div>`;
 
   h += `<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:18px;">
-    <div style="flex:1;min-width:320px;"><h3 style="font-size:15px;margin:0 0 8px;">🏆 सर्वाधिक सुधार (टॉप 8)</h3><div style="overflow-x:auto;">${pmMiniTable(improved.slice(0,8), groupLabel)}</div></div>
-    <div style="flex:1;min-width:320px;"><h3 style="font-size:15px;margin:0 0 8px;">⚠️ सर्वाधिक गिरावट (टॉप 8)</h3><div style="overflow-x:auto;">${pmMiniTable(declined.slice(0,8), groupLabel)}</div></div>
+    <div style="flex:1;min-width:320px;"><h3 style="font-size:15px;margin:0 0 8px;">🏆 सर्वाधिक सुधार (टॉप 8)</h3><div style="overflow-x:auto;">${pmMiniTable(improved.slice(0,8), groupLabel, metricLabel)}</div></div>
+    <div style="flex:1;min-width:320px;"><h3 style="font-size:15px;margin:0 0 8px;">⚠️ सर्वाधिक गिरावट (टॉप 8)</h3><div style="overflow-x:auto;">${pmMiniTable(declined.slice(0,8), groupLabel, metricLabel)}</div></div>
   </div>`;
 
   h += `<h3 style="font-size:15px;margin:0 0 8px;">📋 पूर्ण रैंकिंग सूची (${groupLabel}-वार)</h3>`;
   h += `<div style="overflow-x:auto;"><table class="data-tbl"><thead><tr>
     <th>रैंक</th><th class="desc-th">${groupLabel}</th><th>कुल प्रकरण</th><th>निस्तारित (अभी)</th><th>लंबित (अभी)</th>
-    <th>अनुपालन % (अभी)</th><th>अनुपालन % (${windowDays} दिन पूर्व)</th><th>${windowDays} दिनों में कार्य</th><th>रैंक बदलाव</th>
+    <th>${metricLabel} (अभी)</th><th>${metricLabel} (${windowDays} दिन पूर्व)</th><th>${windowDays} दिनों में कार्य</th><th>रैंक बदलाव</th>
   </tr></thead><tbody>`;
   list.forEach(g=>{
     h += `<tr style="${pmRowStyle(g)}">
@@ -8594,29 +9066,60 @@ function renderPerfMonitor(){
     </tr>`;
   });
   h += `</tbody></table></div>`;
-  h += `<div class="note" style="margin-top:10px;">पात्रता: न्यूनतम ${PM_MIN_CASES} प्रकरण (चयनित हेड व अवधि हेतु)। "अनुपालन %" = निस्तारित / कुल प्रकरण (केवल कटऑफ तिथि तक दर्ज प्रकरणों के स्थिर समूह पर, ताकि नए प्रकरण तुलना को प्रभावित न करें)। रैंक बदलाव धनात्मक (▲, हरा) = सुधार, ऋणात्मक (▼, लाल) = गिरावट।</div>`;
+  if(isPendency){
+    h += `<div class="note" style="margin-top:10px;">पात्रता: न्यूनतम ${PM_MIN_CASES} प्रकरण। "पेंडेंसी %" = लंबित प्रकरण ÷ कुल प्रकरण × 100 (सभी श्रेणियाँ मिलाकर, केवल कटऑफ तिथि तक दर्ज प्रकरणों के स्थिर समूह पर) — यहाँ <b>कम पेंडेंसी % = बेहतर रैंक (रैंक 1)</b>। रैंक बदलाव धनात्मक (▲, हरा) = सुधार (पेंडेंसी घटी), ऋणात्मक (▼, लाल) = गिरावट (पेंडेंसी बढ़ी)।</div>`;
+  } else {
+    h += `<div class="note" style="margin-top:10px;">पात्रता: न्यूनतम ${PM_MIN_CASES} प्रकरण (चयनित हेड व अवधि हेतु)। "अनुपालन %" = 60 दिन में निस्तारित ÷ (60 दिन में निस्तारित + 60 दिन बाद निस्तारित + 60 दिन से अधिक Pending) × 100 — यानी सिर्फ "निस्तारित होना" पर्याप्त नहीं, चार्जशीट दिनांक − FIR दर्ज दिनांक ≤ 60 दिन होना चाहिए (राजस्थान पुलिस के आधिकारिक फॉर्मूले अनुसार, केवल कटऑफ तिथि तक दर्ज प्रकरणों के स्थिर समूह पर, ताकि नए प्रकरण तुलना को प्रभावित न करें)। रैंक बदलाव धनात्मक (▲, हरा) = सुधार, ऋणात्मक (▼, लाल) = गिरावट।</div>`;
+  }
 
   if(headKey==='sll') h += pmRenderSLLSubPanel(groupBy);
   if(headKey==='wa') h += pmRenderWA60Panel(groupBy);
 
   document.getElementById('pm-result').innerHTML = h;
-  window._pmLastList = list; window._pmLastMeta = {headKey, groupBy, windowDays, groupLabel, cutoffLabel};
+  window._pmLastList = list; window._pmLastMeta = {headKey, groupBy, windowDays, groupLabel, cutoffLabel, snapshot:false, metricLabel};
 }
 function pmHeadTitle(headKey){
   if(headKey==='ALL') return 'सभी हेड (समग्र)';
+  if(headKey==='disp60head') return '60 दिवस निस्तारण';
+  if(headKey==='disp90head') return '90 दिवस निस्तारण';
+  if(headKey==='pendencyhead') return 'पेंडेंसी';
   const def = CHART_DEFS.find(d=>d.key===headKey);
   return def ? def.title : headKey;
 }
 function pmInitSelects(){
   const sel = document.getElementById('pm-head');
   if(sel && !sel.options.length){
-    sel.innerHTML = '<option value="ALL">🎯 सभी हेड (समग्र रैंकिंग)</option>' + CHART_DEFS.map(d=>`<option value="${d.key}">${d.title}</option>`).join('');
+    sel.innerHTML = '<option value="ALL">🎯 सभी हेड (समग्र रैंकिंग)</option>'
+      + CHART_DEFS.map(d=>`<option value="${d.key}">${d.title}</option>`).join('')
+      + '<option value="pendencyhead">📌 पेंडेंसी (सभी श्रेणियाँ)</option>'
+      + '<option value="disp60head">⏱️ 60 दिवस निस्तारण</option>'
+      + '<option value="disp90head">⏱️ 90 दिवस निस्तारण</option>';
   }
 }
 function downloadPerfMonitor(){
+  const meta = window._pmLastMeta;
+  if(!meta){ toast('पहले "🔍 देखें" दबाकर रिपोर्ट तैयार करें'); return; }
+  if(meta.snapshot){
+    const agg = window._pmSnapshotAgg;
+    if(!agg){ toast('पहले "🔍 देखें" दबाकर रिपोर्ट तैयार करें'); return; }
+    const items = meta.groupBy==='circle' ? agg.circles : agg.stations;
+    const header = ['रैंक', meta.groupLabel, meta.groupBy==='ps'?'वृत्त':'', 'कुल प्रकरण','समय पर निस्तारित','विलंबित निस्तारित',`${window._pmSnapshotMeta.limit}+ दिन Pending`,'अनुपालन %'].filter(x=>x!=='');
+    const rows = items.filter(x=>x.c1>0).sort((a,b)=>(a.rank==='-'?999:a.rank)-(b.rank==='-'?999:b.rank)).map(x=>{
+      const label = meta.groupBy==='circle' ? x.circle : (x.hi||x.ps);
+      const r=[x.rank, label];
+      if(meta.groupBy==='ps') r.push(x.circle);
+      r.push(x.c1, x.c2, x.c3, x.c5, x.compPct.toFixed(2));
+      return r;
+    });
+    exportRowsToXLSX(`performance-monitoring-${pmHeadTitle(meta.headKey).replace(/[\/\s]+/g,'-')}-${meta.groupLabel}.xlsx`, [
+      {name:'रैंकिंग रिपोर्ट', aoa:[header, ...rows], colWidths:[10,22,16,12,14,14,14,14], filter:true}
+    ]);
+    return;
+  }
   if(!window._pmLastList){ toast('पहले "🔍 देखें" दबाकर रिपोर्ट तैयार करें'); return; }
-  const list = window._pmLastList, meta = window._pmLastMeta;
-  const header = ['रैंक', meta.groupLabel, 'कुल प्रकरण','निस्तारित (अभी)','लंबित (अभी)','अनुपालन % (अभी)',`अनुपालन % (${meta.windowDays} दिन पूर्व)`,`${meta.windowDays} दिनों में कार्य`,'रैंक बदलाव'];
+  const list = window._pmLastList;
+  const metricLabel = meta.metricLabel || 'अनुपालन %';
+  const header = ['रैंक', meta.groupLabel, 'कुल प्रकरण','निस्तारित (अभी)','लंबित (अभी)',`${metricLabel} (अभी)`,`${metricLabel} (${meta.windowDays} दिन पूर्व)`,`${meta.windowDays} दिनों में कार्य`,'रैंक बदलाव'];
   const rows = list.map(g=>[
     g.eligible?g.rankNow+' / '+g.total:'-', g.label, g.universe, g.disposedNow, g.pendingNow,
     g.eligible?g.compNow.toFixed(2):'N/A', g.eligible?g.compThen.toFixed(2):'N/A',
@@ -10449,6 +10952,9 @@ function cpFillSelects(page){
     MONTHS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=m; ms.appendChild(o); });
     ms.dataset.filled='1';
   }
+  const {month:cpDefM, year:cpDefY} = defaultEntryMonthYear();
+  if(ys && !ys.value) ys.value=cpDefY;
+  if(ms && !ms.value) ms.value=cpDefM;
 }
 
 function cpRenderNavAndPages(){
@@ -10536,8 +11042,11 @@ function monInitSelects(){
     if(cur) pageSel.value=cur;
   }
   const ys=document.getElementById('mon-year'), ms=document.getElementById('mon-month');
-  if(ys && !ys.dataset.filled){ for(let y=CY+3;y>=CY-3;y--){ const o=document.createElement('option'); o.value=y;o.textContent=y+'';ys.appendChild(o); } ys.dataset.filled='1'; ys.value=CY; }
-  if(ms && !ms.dataset.filled){ MONTHS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1;o.textContent=m;ms.appendChild(o); }); ms.dataset.filled='1'; ms.value=new Date().getMonth()+1; }
+  if(ys && !ys.dataset.filled){ for(let y=CY+3;y>=CY-3;y--){ const o=document.createElement('option'); o.value=y;o.textContent=y+'';ys.appendChild(o); } ys.dataset.filled='1'; }
+  if(ms && !ms.dataset.filled){ MONTHS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1;o.textContent=m;ms.appendChild(o); }); ms.dataset.filled='1'; }
+  const {month:monDefM, year:monDefY}=defaultEntryMonthYear();
+  if(ys && !ys.value) ys.value=monDefY;
+  if(ms && !ms.value) ms.value=monDefM;
   monPopulateFormats();
 }
 function monPopulateFormats(){
@@ -10582,8 +11091,12 @@ function awMatchCat(sll){
 
 function awInitSelects(){
   const ys=document.getElementById('aw-year'), ms=document.getElementById('aw-month');
-  if(ys && !ys.dataset.filled){ for(let y=CY+3;y>=CY-3;y--){ const o=document.createElement('option'); o.value=y;o.textContent=y+'';ys.appendChild(o); } ys.dataset.filled='1'; ys.value=CY; }
-  if(ms && !ms.dataset.filled){ MONTHS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1;o.textContent=m;ms.appendChild(o); }); ms.dataset.filled='1'; ms.value=new Date().getMonth()+1; }
+  if(ys && !ys.dataset.filled){ for(let y=CY+3;y>=CY-3;y--){ const o=document.createElement('option'); o.value=y;o.textContent=y+'';ys.appendChild(o); } ys.dataset.filled='1'; }
+  if(ms && !ms.dataset.filled){ MONTHS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1;o.textContent=m;ms.appendChild(o); }); ms.dataset.filled='1'; }
+  // यह पेज एक चालू-माह "निगरानी" औज़ार है (सूचना-प्रारूप की तरह पूर्ण-हो-चुके माह की रिपोर्टिंग नहीं) —
+  // इसलिए डिफ़ॉल्ट रूप से चालू माह चुना जाता है, ताकि इसी माह में गत वर्ष की तुलना में कमी दिखे तो अभी कार्यवाही हो सके।
+  if(ys && !ys.value) ys.value=CY;
+  if(ms && !ms.value) ms.value=new Date().getMonth()+1;
 }
 
 function renderActWatch(){
@@ -10595,6 +11108,9 @@ function renderActWatch(){
   if(!month || !year){ box.innerHTML = '<div class="note">कृपया माह व वर्ष चुनें।</div>'; return; }
   if(!RAW || !RAW.length){ box.innerHTML = '<div class="note">SAS Export डेटा उपलब्ध नहीं — पहले लाइव सिंक होने या अपलोड होने का इंतज़ार करें।</div>'; return; }
   const curY = String(year), prevY = String(year-1);
+  const now = new Date();
+  const isRunningMonth = (year===now.getFullYear() && month===(now.getMonth()+1));
+  const todayDay = now.getDate();
   const counts = {}; // counts[ps][cat] = {cur, prev}
   const stations = new Set();
   // डायग्नॉस्टिक्स — ताकि "डेटा अपडेट नहीं हो रहा" जैसी समस्या का कारण (सिंक/कॉलम-मैच) पहचाना जा सके
@@ -10610,6 +11126,12 @@ function renderActWatch(){
     const rowMonth = Number(String(d).slice(5,7));
     const inRange = cumulative ? (rowMonth>=1 && rowMonth<=month) : (rowMonth===month);
     if(!inRange) return;
+    // चयनित माह अभी चालू (अधूरा) माह हो तो निष्पक्ष तुलना हेतु उसी माह में दोनों वर्षों का डेटा
+    // आज की तारीख तक ही गिनें (महीने के बाकी दिन अभी बीते ही नहीं, तो गत वर्ष के पूरे माह से तुलना अनुचित होगी)
+    if(isRunningMonth && rowMonth===month){
+      const rowDay = Number(String(d).slice(8,10));
+      if(rowDay>todayDay) return;
+    }
     rowsInMonthRange++;
     const cat = awMatchCat(r[4]);
     if(!cat){
@@ -10624,6 +11146,7 @@ function renderActWatch(){
   });
   const stList = Array.from(stations).sort();
   const periodLabel = cumulative ? `${MONTHS[0]}–${MONTHS[month-1]}` : MONTHS[month-1];
+  const runningNote = isRunningMonth ? ` (${MONTHS[month-1]} में दोनों वर्ष सिर्फ़ ${pad2(todayDay)} तारीख़ तक — चूंकि यह माह अभी चालू है, निष्पक्ष तुलना हेतु)` : '';
   if(!stList.length){
     let diag = `<div class="note">चयनित अवधि/वर्ष हेतु इन श्रेणियों (आबकारी/जुआ/आर्म्स/NDPS) में कोई डेटा नहीं मिला।</div>
       <div style="margin-top:10px;font-size:12px;background:#FAFAFA;border:1px solid #ddd;border-radius:8px;padding:10px 12px;">
@@ -10643,7 +11166,8 @@ function renderActWatch(){
   }
 
   let alertRows = [];
-  let h = `<div style="overflow-x:auto;"><table class="data-tbl" style="font-size:12.5px;"><thead><tr><th>थाना</th>`;
+  let h = `<div class="note" style="margin-bottom:10px;">📊 अवधि: <b>${periodLabel} — ${curY} बनाम ${prevY}</b>${runningNote}</div>`;
+  h += `<div style="overflow-x:auto;"><table class="data-tbl" style="font-size:12.5px;"><thead><tr><th>थाना</th>`;
   AW_CATS.forEach(c=>{ h += `<th>${AW_CATS_HI[c]}<br><small>(${periodLabel} ${curY} / ${prevY})</small></th>`; });
   h += `</tr></thead><tbody>`;
   stList.forEach(ps=>{
@@ -11237,19 +11761,51 @@ function cpOpenEntry(pageId, fmtKey){
 }
 
 // -------- थाना-साइड: सर्वर से इस थाने/प्रारूप/माह का ताज़ा डेटा मँगाना (जैसे एडमिन के बल्क-अपलोड के बाद) --------
-async function cpPullFromServer(){
-  if(!entryCtx || entryCtx.branch!=='custom') return;
+/** मौजूदा खुले प्रारूप (अपराध/सम्मन-वारंट/मालखाना) की एक सीधी लिंक बनाकर WhatsApp पर भेजने के लिए
+ * खोलता है — वह लिंक खुलते ही सीधे इसी थाना/माह/प्रारूप का एंट्री फॉर्म खुलता है, वेबसाइट लॉक
+ * (पासवर्ड) की वहाँ जरूरत नहीं पड़ती। कस्टम प्रारूप के लिए अभी उपलब्ध नहीं। */
+function shareDirectEntryLink(){
+  if(!entryCtx) return;
+  const b=entryCtx.branch;
+  if(b!=='apradh' && b!=='summon' && b!=='malkhana'){ toast('ℹ️ यह सुविधा फिलहाल सिर्फ अपराध/सम्मन-वारंट/मालखाना प्रारूपों के लिए उपलब्ध है'); return; }
+  const raw=[b, entryCtx.type, entryCtx.thana, entryCtx.year, entryCtx.month].join('|');
+  const url=new URL(location.href);
+  url.hash=''; url.search='';
+  url.searchParams.set('entry', raw);
+  const link=url.toString();
+  const msg='थाना '+entryCtx.thana+' — '+(entryCtx.monthName||'')+' '+entryCtx.year+' — यह लिंक खोलकर सीधे डेटा भरें (पासवर्ड की जरूरत नहीं):\n'+link;
+  window.open('https://wa.me/?text='+encodeURIComponent(msg), '_blank');
+}
+
+async function cpPullFromServer(){ return pullEntryFromServer(); }
+/** एंट्री-फॉर्म का "🔄 सर्वर से ताज़ा लाएँ" बटन — सभी शाखाओं (अपराध/सम्मन/मालखाना/कस्टम) के लिए काम करता है।
+ * सर्वर पर इसी थाना/वर्ष/माह/प्रारूप का जो भी डेटा (किसी भी डिवाइस से सेव किया गया या एडमिन द्वारा
+ * बल्क-अपलोड किया गया) मौजूद है, उसे इस डिवाइस पर मौजूदा (localStorage) डेटा के ऊपर ले आता है। */
+async function pullEntryFromServer(){
+  if(!entryCtx) return;
   if(!isSyncConfigured()){ toast('⚠️ सर्वर कनेक्ट नहीं है'); return; }
-  if(!confirm('यह आपके फोन में सेव डेटा को सर्वर के नवीनतम डेटा से बदल देगा। जारी रखें?')) return;
+  if(!confirm('यह आपके फोन/डिवाइस में सेव डेटा को सर्वर के नवीनतम डेटा से बदल देगा। जारी रखें?')) return;
   toast('⏳ सर्वर से डेटा लाया जा रहा है...');
-  const res=await fetchFromServer('custom', entryCtx.type, entryCtx.year, entryCtx.month, entryCtx.thana);
+  const {branch,type,thana,year,month}=entryCtx;
+  const res=await fetchFromServer(branch, type, year, month, thana);
   if(!res.ok){ toast('❌ डेटा लाने में त्रुटि: '+(res.error||'अज्ञात')); return; }
-  const match=(res.rows||[]).find(r=>r.thana===entryCtx.thana);
-  const payload = match ? match.payload : {rows:[]};
+  const match=(res.rows||[]).find(r=>r.thana===thana);
+  if(!match){ toast('ℹ️ सर्वर पर इस थाना/माह/प्रारूप का कोई डेटा नहीं मिला — मौजूदा डेटा जस का तस है'); return; }
+  const payload=match.payload||{};
   saveData(entryCtx._key, payload);
   markSynced(entryCtx._key, true);
-  let rows=(payload.rows && payload.rows.length)?payload.rows:[{}];
-  cpRenderRows(entryCtx._cfg, rows);
+  if(branch==='custom'){
+    let rows=(payload.rows && payload.rows.length)?payload.rows:[{}];
+    cpRenderRows(entryCtx._cfg, rows);
+  } else if(branch==='apradh'){
+    const cfg=entryCtx._cfg;
+    if(cfg.tableMode){ renderSampattiTable(cfg, payload.data||{}); }
+    else { let rows=(payload.rows&&payload.rows.length)?payload.rows:[emptyApradhRow()]; renderApradhRows(cfg, rows, entryCtx._key); }
+  } else if(branch==='summon'){
+    renderSummonTable(entryCtx._schema, payload.data||{}, entryCtx.monthName, entryCtx.year);
+  } else if(branch==='malkhana'){
+    renderMalkhanaTable(entryCtx._cfg, payload.data||{}, entryCtx.monthName, entryCtx.year);
+  }
   toast('✅ सर्वर से ताज़ा डेटा आ गया');
 }
 
@@ -11563,18 +12119,20 @@ function wrParseRows(rows){
   if(!newData.length) return {error:'⚠️ कोई मान्य पंक्ति नहीं मिली।'};
   return {data:newData};
 }
-function wrApplyNewRows(rows, statusEl){
+function wrApplyNewRows(rows, statusEl, mode){
+  mode = mode || 'replace';
   const parsed = wrParseRows(rows);
   if(parsed.error){ statusEl.innerHTML='<span style="color:#b00020">'+parsed.error+'</span>'; return; }
   const newData = parsed.data;
-  WANTED_DATA = newData;
+  WANTED_DATA = (mode==='append') ? WANTED_DATA.concat(newData) : newData;
   wrRefreshFiltersAndFilters();
   document.getElementById('wrSearchInput').value='';
   runWantedSearch();
-  statusEl.innerHTML = '<span style="color:#1B5E20">✅ '+newData.length.toLocaleString('en-IN')+' रिकॉर्ड सफलतापूर्वक लोड हुए।</span><br>🔄 सीधे Google Sheet में लिखा जा रहा है...';
+  const modeNote = mode==='append' ? (newData.length.toLocaleString('en-IN')+' नए रिकॉर्ड मौजूदा सूची में जोड़े गए — अब कुल '+WANTED_DATA.length.toLocaleString('en-IN')+' रिकॉर्ड।') : (newData.length.toLocaleString('en-IN')+' रिकॉर्ड सफलतापूर्वक लोड हुए।');
+  statusEl.innerHTML = '<span style="color:#1B5E20">✅ '+modeNote+'</span><br>🔄 सीधे Google Sheet में लिखा जा रहा है...';
   toast('✅ नया डेटा लोड हो गया — '+newData.length+' रिकॉर्ड');
-  const baseOk = '<span style="color:#1B5E20">✅ '+newData.length.toLocaleString('en-IN')+' रिकॉर्ड सफलतापूर्वक लोड हुए।</span>';
-  pushSheetUpdate('wanted', rows, 'replace').then(res=>{
+  const baseOk = '<span style="color:#1B5E20">✅ '+modeNote+'</span>';
+  pushSheetUpdate('wanted', rows, mode).then(res=>{
     if(res.ok){ statusEl.innerHTML = baseOk + '<br>🟢 Google Sheet सफलतापूर्वक अपडेट — अब सभी थाने/डिवाइस को यही डेटा दिखेगा।'; }
     else if(res.notConfigured){ statusEl.innerHTML = baseOk + '<br>🟡 यह डेटा अभी सिर्फ़ आपकी स्क्रीन पर है — ऑनलाइन सेव के लिए सेटिंग्स में Sheet-write URL जोड़ना बाकी है।'; }
     else { statusEl.innerHTML = baseOk + '<br>🔴 Google Sheet अपडेट नहीं हो पाई: '+(res.error||'अज्ञात त्रुटि')+' — दोबारा प्रयास करें।'; }
@@ -11589,11 +12147,33 @@ async function wrLoadLiveIfEmpty(){
     if(parsed.data && parsed.data.length){ WANTED_DATA = parsed.data; toast('🟢 वांछित अपराधी रजिस्टर — लाइव डेटा सिंक हुआ'); }
   }catch(e){ /* चुपचाप — कोई live डेटा न मिले तो जो local/snapshot है वही दिखता रहेगा */ }
 }
+/** मॉडल में "पुराना डेटा लोड करें" बटन — Google Sheet के "Wanted" टैब से मौजूदा/पुराना डेटा
+ * हमेशा (चाहे local में पहले से डेटा हो) दोबारा मंगवाकर स्क्रीन पर दिखाता है, ताकि नया अपडेट
+ * करने से पहले देखा जा सके कि अभी सिस्टम में क्या है। */
+async function wrLoadOldData(){
+  const statusEl = document.getElementById('wrUpdateStatus');
+  statusEl.innerHTML = '⏳ Google Sheet से पुराना/मौजूदा डेटा लाया जा रहा है...';
+  try{
+    const aoa = await fetchSheetAOA(SHEET_IDS.wanted, SHEET_TABS.wanted);
+    const parsed = wrParseRows(aoa);
+    if(parsed.error){ statusEl.innerHTML = '<span style="color:#b00020">'+parsed.error+'</span>'; return; }
+    WANTED_DATA = parsed.data;
+    wrRefreshFiltersAndFilters();
+    document.getElementById('wrSearchInput').value='';
+    runWantedSearch();
+    statusEl.innerHTML = '<span style="color:#1B5E20">✅ Google Sheet से '+parsed.data.length.toLocaleString('en-IN')+' मौजूदा रिकॉर्ड लोड हो गए — नीचे रजिस्टर में देखें।</span>';
+    toast('✅ पुराना डेटा लोड हो गया — '+parsed.data.length+' रिकॉर्ड');
+  }catch(e){
+    statusEl.innerHTML = '<span style="color:#b00020">⚠️ पुराना डेटा लाने में त्रुटि हुई — इंटरनेट/सर्वर जाँच लें।</span>';
+  }
+}
 
 function wrLoadNewData(){
   const fileInput = document.getElementById('wrFileInput');
   const pasteArea = document.getElementById('wrPasteArea');
   const statusEl = document.getElementById('wrUpdateStatus');
+  const modeEl = document.querySelector('input[name="wrMergeMode"]:checked');
+  const mode = modeEl ? modeEl.value : 'replace';
   statusEl.innerHTML = '⏳ लोड हो रहा है...';
   if(fileInput.files && fileInput.files[0]){
     const file = fileInput.files[0];
@@ -11602,7 +12182,7 @@ function wrLoadNewData(){
       reader.onload = function(e){
         const lines = String(e.target.result).split(/\r?\n/).filter(l=>l.trim().length);
         const rows = lines.map(l=> l.indexOf('\t')>-1 ? l.split('\t') : l.split(','));
-        wrApplyNewRows(rows, statusEl);
+        wrApplyNewRows(rows, statusEl, mode);
       };
       reader.onerror = function(){ statusEl.innerHTML='<span style="color:#b00020">⚠️ फ़ाइल पढ़ने में त्रुटि हुई।</span>'; };
       reader.readAsText(file);
@@ -11615,7 +12195,7 @@ function wrLoadNewData(){
           const wb = XLSX.read(data, {type:'array', cellDates:true});
           const sheet = wb.Sheets[wb.SheetNames[0]];
           const rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:false, defval:''});
-          wrApplyNewRows(rows, statusEl);
+          wrApplyNewRows(rows, statusEl, mode);
         }catch(err){ statusEl.innerHTML='<span style="color:#b00020">⚠️ फ़ाइल पढ़ने में त्रुटि: '+err.message+'</span>'; }
       };
       reader.onerror = function(){ statusEl.innerHTML='<span style="color:#b00020">⚠️ फ़ाइल पढ़ने में त्रुटि हुई।</span>'; };
@@ -11624,7 +12204,7 @@ function wrLoadNewData(){
   } else if(pasteArea.value.trim()){
     const lines = pasteArea.value.split(/\r?\n/).filter(l=>l.trim().length);
     const rows = lines.map(l=> l.indexOf('\t')>-1 ? l.split('\t') : l.split(','));
-    wrApplyNewRows(rows, statusEl);
+    wrApplyNewRows(rows, statusEl, mode);
   } else {
     statusEl.innerHTML = '<span style="color:#b00020">⚠️ पहले फाइल चुनें या डेटा पेस्ट करें।</span>';
   }
@@ -11883,6 +12463,43 @@ function downloadPivotDrill(){
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js').catch(()=>{ /* sw.js अभी अपलोड नहीं है — पोर्टल सामान्य ऑनलाइन मोड में चलता रहेगा, कोई दिक्कत नहीं */ });
   }
+})();
+</script>
+<script>
+// ============================================================
+// "?entry=branch|type|thana|year|month" — सीधी लिंक से आने पर
+// उसी थाना/माह/प्रारूप का एंट्री फॉर्म अपने-आप खोल देता है
+// (site-lock-overlay ऊपर पहले ही इस पैरामीटर को देखकर हट चुका होता है)
+// ============================================================
+(function(){
+  try{
+    const params=new URLSearchParams(location.search);
+    const entryParam=params.get('entry');
+    if(!entryParam) return;
+    const parts=entryParam.split('|');
+    const branch=parts[0], type=parts[1], thana=parts[2], year=parts[3], month=parts[4];
+    const pageMap={apradh:'apradh', summon:'summon', malkhana:'malkhana'};
+    const preMap={apradh:'ap', summon:'sv', malkhana:'mk'};
+    const updateFnMap={apradh:'apCtxUpdate', summon:'svCtxUpdate', malkhana:'mkCtxUpdate'};
+    if(!pageMap[branch]) return;
+    if(typeof go==='function') go(pageMap[branch]);
+    const pre=preMap[branch];
+    setTimeout(function(){
+      const tSel=document.getElementById(pre+'-thana');
+      const ySel=document.getElementById(pre+'-year');
+      const mSel=document.getElementById(pre+'-month');
+      if(tSel) tSel.value=thana;
+      if(ySel) ySel.value=year;
+      if(mSel) mSel.value=month;
+      const fn=updateFnMap[branch];
+      if(fn && typeof window[fn]==='function') window[fn]();
+      setTimeout(function(){
+        if(branch==='apradh' && typeof openApradhEntry==='function') openApradhEntry(type);
+        else if(branch==='summon' && typeof openSummonEntry==='function') openSummonEntry(type);
+        else if(branch==='malkhana' && typeof openMalkhanaEntry==='function') openMalkhanaEntry(type);
+      }, 60);
+    }, 60);
+  }catch(e){}
 })();
 </script>
 </body>

@@ -1108,10 +1108,22 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
 .fc-stat-val{font-family:'Hind',sans-serif;font-size:19px;font-weight:700;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
 .fc-stat-val.a{color:var(--gold2)}
 .fc-stat-val.b{color:var(--amber2)}
+.fc-stat-val.pct{color:var(--maroon)}
+.fc-stat-val.proj{color:var(--soft);font-size:15px}
 .fc-arrow{font-size:13px;vertical-align:1px}
 
 .fircmp-chartwrap{position:relative;margin:0 -2px}
 .fircmp-chartwrap canvas{width:100% !important;height:230px !important}
+
+.fircmp-monthgrid{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin-top:10px}
+.fc-mcell{text-align:center;border-radius:6px;padding:5px 2px;background:var(--paper);border:1px solid var(--line)}
+.fc-mcell.up{background:rgba(19,136,8,.08);border-color:rgba(19,136,8,.25)}
+.fc-mcell.down{background:rgba(220,38,38,.08);border-color:rgba(220,38,38,.25)}
+.fc-mcell .fc-mlbl{display:block;font-size:8.5px;color:var(--soft);font-weight:700}
+.fc-mcell .fc-mval{display:block;font-size:11px;font-weight:700}
+.fc-mcell.up .fc-mval{color:#138808}
+.fc-mcell.down .fc-mval{color:#DC2626}
+.fc-mcell.flat .fc-mval{color:var(--soft)}
 
 .fircmp-insight{background:var(--gold-tint);color:var(--ink);font-size:12.5px;font-weight:600;text-align:center;padding:12px 16px;position:relative;line-height:1.5;display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;margin:14px -18px -18px;border-radius:0 0 var(--r-lg) var(--r-lg)}
 .fircmp-insight .fc-lead{color:var(--gold2)}
@@ -1123,6 +1135,9 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
   .fircmp-legend{align-self:flex-end}
   .fircmp-chartwrap canvas{height:200px !important}
   .fc-stat-val{font-size:16px}
+  .fircmp-stats{flex-wrap:wrap}
+  .fircmp-stats .fc-stat{flex:1 1 33%}
+  .fircmp-monthgrid{grid-template-columns:repeat(6,1fr);row-gap:5px}
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -1574,10 +1589,13 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
           <div class="fc-stat"><span class="fc-stat-lbl">चालू वर्ष कुल</span><span class="fc-stat-val a" id="firCmpStatA">0</span></div>
           <div class="fc-stat"><span class="fc-stat-lbl">तुलना वर्ष कुल</span><span class="fc-stat-val b" id="firCmpStatB">0</span></div>
           <div class="fc-stat"><span class="fc-stat-lbl">अंतर</span><span class="fc-stat-val diff" id="firCmpStatDiff">0</span></div>
+          <div class="fc-stat"><span class="fc-stat-lbl">% परिवर्तन</span><span class="fc-stat-val pct" id="firCmpStatPct">0%</span></div>
+          <div class="fc-stat"><span class="fc-stat-lbl">वर्ष-अंत अनुमान</span><span class="fc-stat-val proj" id="firCmpStatProj">—</span></div>
         </div>
         <div class="fircmp-chartwrap">
           <canvas id="firCmpCanvas"></canvas>
         </div>
+        <div class="fircmp-monthgrid" id="firCmpMonthGrid"></div>
       </div>
       <div class="fircmp-insight" id="firCmpInsight"></div>
     </div>
@@ -5986,31 +6004,61 @@ async function exportPptChartsToPPTX(){
   const pres = new PptxGenJS();
   pres.defineLayout({ name:'WIDE', width:13.33, height:7.5 });
   pres.layout = 'WIDE';
+
+  const NAVY='1E2A45', NAVY2='141D30', GOLD_ACCENT='D9C68A', SAFFRON='FF9933', GREEN='138808';
+  const todayStr = new Date().toLocaleDateString('hi-IN', {day:'2-digit', month:'long', year:'numeric'});
+
+  // ---- कवर स्लाइड ----
+  const cover = pres.addSlide();
+  cover.background = { color: NAVY2 };
+  cover.addShape('rect', { x:0, y:0, w:13.33, h:0.12, fill:{color:SAFFRON}, line:{color:SAFFRON} });
+  cover.addShape('rect', { x:0, y:0.12, w:13.33, h:0.06, fill:{color:'FFFFFF'}, line:{color:'FFFFFF'} });
+  cover.addShape('rect', { x:0, y:0.18, w:13.33, h:0.12, fill:{color:GREEN}, line:{color:GREEN} });
+  cover.addText('जिला डीडवाना-कुचामन पुलिस', { x:0.5, y:2.6, w:12.33, h:0.8, fontSize:34, bold:true, align:'center', color:'FFFFFF', fontFace:'Nirmala UI' });
+  cover.addText('अपराध सांख्यिकी — श्रेणी-वार प्रस्तुतिकरण', { x:0.5, y:3.4, w:12.33, h:0.6, fontSize:20, italic:true, align:'center', color:GOLD_ACCENT, fontFace:'Nirmala UI' });
+  cover.addText(todayStr, { x:0.5, y:6.7, w:12.33, h:0.4, fontSize:13, align:'center', color:'AAB4C8', fontFace:'Nirmala UI' });
+
+  let slideNum = 1;
   for(const def of PPT_CHART_DEFS){
     const chart = dbCharts[def.key];
     if(!chart) continue;
     const slide = pres.addSlide();
-    slide.background = { color:'FFFFFF' };
+    slide.background = { color:'F7F8FB' };
+    // हेडर बैंड
+    slide.addShape('rect', { x:0, y:0, w:13.33, h:1.0, fill:{color:NAVY}, line:{color:NAVY} });
+    slide.addShape('rect', { x:0, y:1.0, w:13.33, h:0.05, fill:{color:SAFFRON}, line:{color:SAFFRON} });
     slide.addText(def.title.replace(/[“”]/g,'') + pptChartMonthLabel(def.key), {
-      x:0.4, y:0.25, w:12.5, h:0.6, fontSize:22, bold:true, italic:true, align:'center', color:'1A2744', fontFace:'Nirmala UI'
+      x:0.4, y:0.15, w:12.5, h:0.7, fontSize:22, bold:true, align:'center', color:'FFFFFF', fontFace:'Nirmala UI'
     });
     try{
       const img = chart.toBase64Image('image/png',1.0);
-      slide.addImage({ data:img, x:1.0, y:1.0, w:11.3, h:3.9 });
+      slide.addImage({ data:img, x:1.0, y:1.25, w:11.3, h:3.75 });
     }catch(e){}
-    // native डेटा टेबल
+    // native डेटा टेबल (नेवी हेडर)
     const years = dbState.mode==='year' ? dbState.years : [null];
-    const headerRow = [{ text:'Year', options:{bold:true, fill:{color:'EEF2F8'}, color:'1A2744'} }]
-      .concat(def.cats.map(c=>({ text:c, options:{bold:true, fill:{color:'EEF2F8'}, color:'1A2744', fontSize:10} })));
+    const headerRow = [{ text:'Year', options:{bold:true, fill:{color:NAVY}, color:'FFFFFF'} }]
+      .concat(def.cats.map(c=>({ text:c, options:{bold:true, fill:{color:NAVY}, color:'FFFFFF', fontSize:10} })));
     const bodyRows = chart.data.datasets.map((ds,i)=>{
       const clr = PPT_YEAR_COLORS[i%PPT_YEAR_COLORS.length].replace('#','');
-      return [{ text:ds.label, options:{bold:true, color:clr} }].concat(ds.data.map(v=>({ text:String(v), options:{fontSize:10} })));
+      return [{ text:ds.label, options:{bold:true, color:clr, fill:{color:'FFFFFF'}} }].concat(ds.data.map(v=>({ text:String(v), options:{fontSize:10, fill:{color:'FFFFFF'}} })));
     });
     slide.addTable([headerRow, ...bodyRows], {
-      x:1.0, y:5.05, w:11.3, h:1.9, fontSize:10, border:{type:'solid', color:'C9D2E0', pt:0.75},
+      x:1.0, y:5.15, w:11.3, h:1.8, fontSize:10, border:{type:'solid', color:'C9D2E0', pt:0.75},
       autoPage:false, valign:'middle'
     });
+    slideNum++;
+    slide.addText('जिला डीडवाना-कुचामन पुलिस  |  पृष्ठ '+slideNum, { x:0.4, y:7.15, w:12.5, h:0.3, fontSize:9, align:'right', color:'8A93A8', fontFace:'Nirmala UI' });
   }
+
+  // ---- समापन स्लाइड ----
+  const closing = pres.addSlide();
+  closing.background = { color: NAVY2 };
+  closing.addShape('rect', { x:0, y:7.2, w:13.33, h:0.1, fill:{color:SAFFRON}, line:{color:SAFFRON} });
+  closing.addShape('rect', { x:0, y:7.3, w:13.33, h:0.05, fill:{color:'FFFFFF'}, line:{color:'FFFFFF'} });
+  closing.addShape('rect', { x:0, y:7.35, w:13.33, h:0.15, fill:{color:GREEN}, line:{color:GREEN} });
+  closing.addText('धन्यवाद', { x:0.5, y:3.2, w:12.33, h:0.9, fontSize:36, bold:true, align:'center', color:'FFFFFF', fontFace:'Nirmala UI' });
+  closing.addText('जिला डीडवाना-कुचामन पुलिस — रज.शाखा', { x:0.5, y:4.1, w:12.33, h:0.5, fontSize:16, align:'center', color:'AAB4C8', fontFace:'Nirmala UI' });
+
   pres.writeFile({ fileName: 'apradh-sankhyiki-charts.pptx' });
   toast('✅ PPTX डाउनलोड हो रही है');
 }
@@ -6430,6 +6478,22 @@ function renderFirCmp(){
     }
     return arr;
   }
+  // माह-वार (गैर-संचयी) गिनती — मिनी-ग्रिड विश्लेषण हेतु, अकेले उस माह के आँकड़े
+  function monthlyNonCumulative(year){
+    const arr = new Array(12).fill(0);
+    if(year==null) return arr;
+    base.forEach(r=>{
+      if(r.year!==year || !r.month) return;
+      if(catKey && !r[catKey]) return;
+      if(catKey && subVal && r[catKey]!==subVal) return;
+      arr[r.month-1]++;
+    });
+    if(year===today.getFullYear()){
+      const curM = today.getMonth()+1;
+      for(let i=curM;i<12;i++) arr[i]=null;
+    }
+    return arr;
+  }
 
   const a = monthlyCumulative(curYear);
   const b = monthlyCumulative(prevYear);
@@ -6464,10 +6528,49 @@ function renderFirCmp(){
 
   const lastA = firCmpLastReal(a), lastB = firCmpLastReal(b), diff = lastA-lastB;
   const elA=document.getElementById('firCmpStatA'), elB=document.getElementById('firCmpStatB'), elD=document.getElementById('firCmpStatDiff');
+  const elPct=document.getElementById('firCmpStatPct'), elProj=document.getElementById('firCmpStatProj');
   if(elA) elA.textContent = lastA;
   if(elB) elB.textContent = lastB;
   if(elD) elD.innerHTML = (diff>=0?'<span class="fc-arrow">▲</span>':'<span class="fc-arrow">▼</span>')+Math.abs(diff);
   firCmpLead = diff>=0 ? {idx:0,color:'#4F46E5'} : {idx:1,color:'#F59E0B'};
+
+  // % परिवर्तन
+  let pctChange = null;
+  if(lastB>0) pctChange = ((lastA-lastB)/lastB)*100;
+  else if(lastA>0) pctChange = 100;
+  if(elPct) elPct.innerHTML = pctChange==null ? '—' : ((pctChange>=0?'+':'')+pctChange.toFixed(1)+'%');
+  if(elPct) elPct.style.color = pctChange==null ? 'var(--soft)' : (pctChange>=0 ? '#138808' : '#DC2626');
+
+  // वर्ष-अंत अनुमान (केवल तभी जब चालू वर्ष असल में यह calendar वर्ष हो और अभी पूरा न हुआ हो)
+  if(elProj){
+    if(curYear===today.getFullYear() && today.getMonth()+1<12 && lastA>0){
+      const elapsedMonths = today.getMonth()+1;
+      const proj = Math.round(lastA/elapsedMonths*12);
+      elProj.textContent = '~'+proj;
+    } else {
+      elProj.textContent = '—';
+    }
+  }
+
+  // माह-वार वृद्धि/कमी मिनी-ग्रिड (संचयी नहीं, उस माह के अकेले आँकड़े की तुलना)
+  const mgrid = document.getElementById('firCmpMonthGrid');
+  if(mgrid){
+    const monthlyA = monthlyNonCumulative(curYear), monthlyB = monthlyNonCumulative(prevYear);
+    let cells = '';
+    let monthsUp=0, monthsDown=0, monthsFlat=0;
+    for(let i=0;i<12;i++){
+      const va = monthlyA[i], vb = monthlyB[i];
+      if(va==null){ cells += `<div class="fc-mcell"><span class="fc-mlbl">${FIRCMP_MONTHS[i]}</span><span class="fc-mval">–</span></div>`; continue; }
+      const d = va-vb;
+      let cls='flat', arrow='➖';
+      if(d>0){ cls='up'; arrow='▲'; monthsUp++; }
+      else if(d<0){ cls='down'; arrow='▼'; monthsDown++; }
+      else { monthsFlat++; }
+      cells += `<div class="fc-mcell ${cls}"><span class="fc-mlbl">${FIRCMP_MONTHS[i]}</span><span class="fc-mval">${arrow}${Math.abs(d)}</span></div>`;
+    }
+    mgrid.innerHTML = cells;
+    mgrid.dataset.up = monthsUp; mgrid.dataset.down = monthsDown; mgrid.dataset.flat = monthsFlat;
+  }
 
   const catTitle = (CHART_DEFS.find(d=>d.key===catKey)||{}).title || '';
   const scopeEl = document.getElementById('firCmpScopeTxt');
@@ -6477,10 +6580,21 @@ function renderFirCmp(){
   if(!bar) return;
   if(!prevYear){
     bar.innerHTML = 'तुलना हेतु कम से कम 2 वर्षों का डेटा आवश्यक है।';
-  } else if(diff>=0){
-    bar.innerHTML = `<span class="fc-ico">📈</span><b class="fc-lead">वर्ष ${curYear}</b> अब तक <b>${diff}</b> अधिक FIR के साथ आगे — कुल ${lastA} बनाम ${lastB} (वर्ष ${prevYear})`;
+    return;
+  }
+  const pctTxt = pctChange==null ? '' : ` (${pctChange>=0?'+':''}${pctChange.toFixed(1)}%)`;
+  const mUp = mgrid ? Number(mgrid.dataset.up||0) : 0, mDown = mgrid ? Number(mgrid.dataset.down||0) : 0;
+  const monthNote = (mUp+mDown>0) ? ` — ${mUp} माह में वृद्धि, ${mDown} माह में कमी (गत वर्ष की तुलना में)` : '';
+  let projNote = '';
+  if(curYear===today.getFullYear() && today.getMonth()+1<12 && lastA>0){
+    const elapsedMonths = today.getMonth()+1;
+    const proj = Math.round(lastA/elapsedMonths*12);
+    projNote = ` — इसी गति से वर्ष-अंत तक अनुमानित कुल ~${proj}`;
+  }
+  if(diff>=0){
+    bar.innerHTML = `<span class="fc-ico">📈</span><b class="fc-lead">वर्ष ${curYear}</b> अब तक <b>${diff}</b>${pctTxt} अधिक FIR के साथ आगे — कुल ${lastA} बनाम ${lastB} (वर्ष ${prevYear})${monthNote}${projNote}`;
   } else {
-    bar.innerHTML = `<span class="fc-ico">📉</span><b class="fc-lead">वर्ष ${curYear}</b> को वर्ष ${prevYear} की बराबरी के लिए <b>${Math.abs(diff)}</b> और FIR दर्ज होने शेष — अभी ${lastA} बनाम ${lastB}`;
+    bar.innerHTML = `<span class="fc-ico">📉</span><b class="fc-lead">वर्ष ${curYear}</b> को वर्ष ${prevYear} की बराबरी के लिए <b>${Math.abs(diff)}</b>${pctTxt} और FIR दर्ज होने शेष — अभी ${lastA} बनाम ${lastB}${monthNote}${projNote}`;
   }
 }
 (function firCmpLoop(){ if(firCmpChart) firCmpChart.draw(); requestAnimationFrame(firCmpLoop); })();
@@ -11756,6 +11870,8 @@ function cpOpenEntry(pageId, fmtKey){
   cpRenderRows(fmt, rows);
   const pullBtn=document.getElementById('cp-pull-btn');
   if(pullBtn) pullBtn.style.display = isSyncConfigured() ? 'inline-block' : 'none';
+  const shareBtnCp=document.getElementById('entry-share-link-btn');
+  if(shareBtnCp) shareBtnCp.style.display = 'inline-block';
   document.getElementById('entry-overlay').classList.add('on');
   document.body.style.overflow='hidden';
 }
@@ -11767,8 +11883,10 @@ function cpOpenEntry(pageId, fmtKey){
 function shareDirectEntryLink(){
   if(!entryCtx) return;
   const b=entryCtx.branch;
-  if(b!=='apradh' && b!=='summon' && b!=='malkhana'){ toast('ℹ️ यह सुविधा फिलहाल सिर्फ अपराध/सम्मन-वारंट/मालखाना प्रारूपों के लिए उपलब्ध है'); return; }
-  const raw=[b, entryCtx.type, entryCtx.thana, entryCtx.year, entryCtx.month].join('|');
+  if(b!=='apradh' && b!=='summon' && b!=='malkhana' && b!=='custom'){ toast('ℹ️ यह सुविधा फिलहाल अपराध/सम्मन-वारंट/मालखाना/कस्टम प्रारूपों के लिए उपलब्ध है'); return; }
+  const raw = b==='custom'
+    ? [b, entryCtx.pageId, entryCtx.type, entryCtx.thana, entryCtx.year, entryCtx.month].join('|')
+    : [b, entryCtx.type, entryCtx.thana, entryCtx.year, entryCtx.month].join('|');
   const url=new URL(location.href);
   url.hash=''; url.search='';
   url.searchParams.set('entry', raw);
@@ -12467,8 +12585,9 @@ function downloadPivotDrill(){
 </script>
 <script>
 // ============================================================
-// "?entry=branch|type|thana|year|month" — सीधी लिंक से आने पर
-// उसी थाना/माह/प्रारूप का एंट्री फॉर्म अपने-आप खोल देता है
+// "?entry=branch|type|thana|year|month" (built-in branches) या
+// "?entry=custom|pageId|type|thana|year|month" (कस्टम प्रारूप) — सीधी लिंक से
+// आने पर उसी थाना/माह/प्रारूप का एंट्री फॉर्म अपने-आप खोल देता है
 // (site-lock-overlay ऊपर पहले ही इस पैरामीटर को देखकर हट चुका होता है)
 // ============================================================
 (function(){
@@ -12477,7 +12596,32 @@ function downloadPivotDrill(){
     const entryParam=params.get('entry');
     if(!entryParam) return;
     const parts=entryParam.split('|');
-    const branch=parts[0], type=parts[1], thana=parts[2], year=parts[3], month=parts[4];
+    const branch=parts[0];
+
+    if(branch==='custom'){
+      const pageId=parts[1], type=parts[2], thana=parts[3], year=parts[4], month=parts[5];
+      setTimeout(function(){
+        if(typeof go==='function') go('custom_'+pageId);
+        setTimeout(function(){
+          const page = (typeof cpGetPage==='function') ? cpGetPage(pageId) : null;
+          const pre = page && typeof cpPagePrefix==='function' ? cpPagePrefix(page) : null;
+          if(pre){
+            const tSel=document.getElementById(pre+'-thana');
+            const ySel=document.getElementById(pre+'-year');
+            const mSel=document.getElementById(pre+'-month');
+            if(tSel) tSel.value=thana;
+            if(ySel) ySel.value=year;
+            if(mSel) mSel.value=month;
+          }
+          setTimeout(function(){
+            if(typeof cpOpenEntry==='function') cpOpenEntry(pageId, type);
+          }, 60);
+        }, 60);
+      }, 60);
+      return;
+    }
+
+    const type=parts[1], thana=parts[2], year=parts[3], month=parts[4];
     const pageMap={apradh:'apradh', summon:'summon', malkhana:'malkhana'};
     const preMap={apradh:'ap', summon:'sv', malkhana:'mk'};
     const updateFnMap={apradh:'apCtxUpdate', summon:'svCtxUpdate', malkhana:'mkCtxUpdate'};

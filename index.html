@@ -1168,7 +1168,6 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
 <script>
 (function(){
   var SITE_LOCK_PASSWORD_DEFAULT = 'Manoj';
-  var SITE_LOCK_KEY = 'site_unlocked_v1';
   function getSiteLockPassword(){
     try{ return localStorage.getItem('dkSiteLockPwOverride') || SITE_LOCK_PASSWORD_DEFAULT; }catch(e){ return SITE_LOCK_PASSWORD_DEFAULT; }
   }
@@ -1193,7 +1192,7 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
     var el=document.getElementById('site-lock-pw');
     var val=el?el.value:'';
     if(val===getSiteLockPassword()){
-      try{ localStorage.setItem(SITE_LOCK_KEY,'1'); }catch(e){}
+      // जान-बूझकर कहीं सेव नहीं किया जाता — हर बार पेज रीफ्रेश/खुलने पर पासवर्ड अनिवार्य रहे
       hideLock();
     } else {
       var errEl=document.getElementById('site-lock-err');
@@ -1201,9 +1200,8 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
       if(el){ el.value=''; el.focus(); }
     }
   };
-  var already=false;
-  try{ already = localStorage.getItem(SITE_LOCK_KEY)==='1'; }catch(e){}
-  if(already || hasDirectEntryBypass()){
+  // हर बार पेज लोड/रीफ्रेश होने पर लॉक दिखेगा — सिर्फ सीधी-लिंक (?entry / ?openpg) से आने पर बायपास होता है
+  if(hasDirectEntryBypass()){
     hideLock();
   } else {
     setTimeout(function(){ var el=document.getElementById('site-lock-pw'); if(el) el.focus(); }, 100);
@@ -1236,6 +1234,7 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
   <button data-pg="disp60" onclick="go('disp60')">⏱️ 60 दिवस निस्तारण</button>
   <button data-pg="disp90" onclick="go('disp90')">⏱️ 90 दिवस निस्तारण</button>
   <button data-pg="pendency" onclick="go('pendency')">📉 पेंडेंसी रैंकिंग</button>
+  <button data-pg="mcrBook" onclick="adminGo('mcrBook')">📗 MCR Book (मासिक अपराध प्रतिवेदन)</button>
   <button data-pg="univsearch" onclick="go('univsearch')">🔎 यूनिवर्सल सर्च</button>
   <button onclick="toggleDarkMode()" id="darkModeToggleBtn">🌙 डार्क मोड</button>
   <button onclick="triggerPwaInstall()" id="pwaInstallBtn" style="display:none;">📲 होम स्क्रीन पर इंस्टॉल करें</button>
@@ -1745,7 +1744,12 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
   <div class="db-modal">
     <h2>वांछित अपराधी रजिस्टर — नया माह डेटा अपडेट करें</h2>
     <div class="sub">एक्सेल फाइल (.xlsx) सीधे अपलोड करें — या नीचे बॉक्स में एक्सेल से कॉपी करके (हैडिंग सहित) पेस्ट करें। कॉलम अपने-आप पहचान लिए जाएंगे।</div>
-    <div class="dropzone" onclick="document.getElementById('wrFileInput').click()">
+    <div class="note" style="margin-bottom:10px">📅 यह डेटा <b>किस माह</b> की स्थिति है, वह चुनें — इससे महीना-दर-महीना नए/निस्तारण/पेंडिंग का विश्लेषण अपने-आप बनेगा (जैसे: जनवरी अपलोड करने के बाद फरवरी अपलोड करने पर, जो जनवरी में थे पर फरवरी में नहीं — वे "निस्तारण" माने जाएंगे; जो फरवरी में नए दिखे — "नया"; जो दोनों में हैं — "पेंडिंग")।</div>
+    <div class="rowline">
+      <select id="wrSnapMonth" style="padding:9px 10px;border-radius:8px;border:1.5px solid var(--line)"></select>
+      <select id="wrSnapYear" style="padding:9px 10px;border-radius:8px;border:1.5px solid var(--line)"></select>
+    </div>
+    <div class="dropzone" onclick="document.getElementById('wrFileInput').click()" style="margin-top:12px">
       📄 यहाँ क्लिक कर फ़ाइल चुनें (.xlsx / .xls / .csv)
     </div>
     <input type="file" id="wrFileInput" accept=".xlsx,.xls,.csv" style="display:none">
@@ -1913,6 +1917,86 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
     </div>
     <div id="pendTable"></div>
     <div class="note" style="margin-top:14px;">पद्धति: पेंडेंसी % = कुल पेंडिंग प्रकरण (लंबित/पैडिंग अनुसंधान + रीओपन + 193(9) बीएनएसएस/173(3) दंड प्रक्रिया संहिता विस्तार — किसी भी दर्ज वर्ष के) ÷ आधार वर्ष में दर्ज कुल प्रकरण संख्या × 100। रैंकिंग में सबसे कम पेंडेंसी % वाला थाना/सर्किल रैंक-1 पर रहता है (कम पेंडेंसी = बेहतर प्रदर्शन)। यह ठीक वही पद्धति है जो राज्य स्तरीय पेंडेंसी रिपोर्ट में उपयोग होती है — लंबित प्रकरणों की गिनती दर्ज वर्ष तक सीमित नहीं रहती।</div>
+  </div>
+</div>
+
+<!-- ============================================================ MCR BOOK ============================================================ -->
+<style>
+/* ===== MCR Book — "असली किताब" जैसी शैली, संदर्भ जिला-MCR-बुक टूल के डिज़ाइन से मेल खाती हुई ===== */
+.mcr-book-page{width:794px;max-width:100%;min-height:1123px;background:#fff;position:relative;font-family:'Hind','Noto Sans Devanagari',sans-serif;margin:0 auto 24px;box-shadow:0 1px 8px rgba(0,0,0,.12);page-break-after:always}
+.mcr-book-cover{width:794px;max-width:100%;height:1123px;background:linear-gradient(160deg,#0E1B30 0%,#152742 55%,#1E3A5F 100%);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;box-sizing:border-box}
+.mcr-book-cover::before{content:'';position:absolute;inset:22px;border:2px solid #B8862E;border-radius:2px;pointer-events:none}
+.mcr-book-cover::after{content:'';position:absolute;inset:32px;border:1px solid rgba(232,214,170,.5);border-radius:2px;pointer-events:none}
+.mcr-book-cover .mcr-k1{font-size:14px;letter-spacing:.35em;color:#E8D6AA;margin-bottom:14px;text-transform:uppercase}
+.mcr-book-cover .mcr-badge{width:64px;height:64px;margin-bottom:18px}
+.mcr-book-cover h1{font-size:34px;margin:0 0 10px;font-weight:800;color:#fff;line-height:1.3}
+.mcr-book-cover h2{font-size:24px;margin:0 0 26px;font-weight:700;color:#B8862E}
+.mcr-book-cover .mcr-div-line{width:120px;height:2px;background:#B8862E;margin:20px 0}
+.mcr-book-cover .mcr-k2{font-size:15px;color:#EAF0F8;margin-bottom:6px}
+.mcr-book-cover .mcr-k3{font-size:21px;font-weight:700;color:#fff;margin-bottom:36px}
+.mcr-book-cover .mcr-foot{position:absolute;bottom:44px;font-size:11.5px;color:#AEBBD0;letter-spacing:.05em;padding:0 40px}
+.mcr-book-cover .mcr-foot b{color:#E8D6AA}
+.mcr-book-toc{padding:60px 56px;box-sizing:border-box;width:794px;max-width:100%;min-height:1123px}
+.mcr-book-toc h2{color:#152742;font-size:22px;border-bottom:3px solid #B8862E;padding-bottom:12px;margin:0 0 20px}
+.mcr-book-toc .mcr-toc-grp{color:#B8862E;font-weight:700;font-size:12.5px;letter-spacing:.03em;margin:18px 0 8px;text-transform:uppercase}
+.mcr-book-toc .mcr-toc-row{display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px dotted #D7DEE8;font-size:13.4px;color:#1A2033}
+.mcr-book-toc .mcr-toc-row .mcr-n{color:#6B7280;min-width:26px;display:inline-block}
+.mcr-book-section{padding:40px 40px 56px;box-sizing:border-box;width:794px;max-width:100%;min-height:0}
+.mcr-book-section-head{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #B8862E;padding-bottom:12px;margin-bottom:18px}
+.mcr-book-section-head .mcr-t1{font-size:11px;color:#B8862E;letter-spacing:.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px}
+.mcr-book-section-head h2{font-size:18px;color:#152742;margin:0;font-weight:800}
+.mcr-book-section-head .mcr-badge-mini{width:38px;height:38px;border-radius:50%;border:2px solid #B8862E;display:flex;align-items:center;justify-content:center;flex:none}
+.mcr-book-section-head .mcr-badge-mini svg{width:20px;height:20px}
+.mcr-book-section-foot{margin-top:24px;padding-top:10px;border-top:1px solid #D7DEE8;display:flex;justify-content:space-between;font-size:10.5px;color:#8A93A8}
+@media print{ .mcr-book-page{box-shadow:none;margin:0} }
+</style>
+<div class="pg" id="mcrBook">
+  <div class="banner" style="background:linear-gradient(180deg,var(--navy),var(--navy2))">
+    <h1>📗 MCR Book — मासिक अपराध प्रतिवेदन</h1>
+    <p>पोर्टल के अपने (SAS Export आधारित) डेटा से — कोई अलग फाइल अपलोड करने की जरूरत नहीं</p>
+  </div>
+  <div class="content">
+    <div class="ctx-bar">
+      <div class="ctx-grid">
+        <div><label>तुलना हेतु वर्ष (चालू)</label><select id="mcrYear"></select></div>
+      </div>
+      <div class="note" style="margin-top:8px">नीचे हर सेक्शन में चयनित वर्ष व उससे पिछले 2 वर्षों की तुलना दिखेगी (पोर्टल में जितना डेटा उपलब्ध है)। यह रिपोर्ट पोर्टल के dbRecords (SAS Export से बना) से सीधे बनती है — अलग से CCTNS_BASED_MCR फाइल अपलोड करने की जरूरत नहीं।</div>
+      <button class="btn-fill" style="margin-top:10px;background:linear-gradient(135deg,var(--navy),var(--navy2))" onclick="renderMcrBook()">🔍 रिपोर्ट बनाएं</button>
+    </div>
+
+    <div id="mcrBookArea"></div>
+
+    <div class="rowline" id="mcrBookActions" style="display:none;margin-top:16px">
+      <button class="btn-gold" style="padding:10px 16px;border:none;border-radius:8px;font-weight:600;color:#fff;background:linear-gradient(135deg,#4F46E5,#3730A3);cursor:pointer" onclick="downloadMcrBookWord()">📄 Word रिपोर्ट डाउनलोड करें (.doc)</button>
+      <button class="btn-ghost" style="padding:10px 16px;border:1.5px solid var(--line);border-radius:8px;background:#fff;cursor:pointer" onclick="printMcrBook()">🖨️ प्रिंट / PDF</button>
+    </div>
+
+    <div class="card" style="margin-top:22px">
+      <h2 style="font-size:15px">⚠️ शेष सेक्शन — जिनका डेटा पोर्टल में अभी नहीं है</h2>
+      <div class="note">भा.द.सं./बी.एन.एस., SLL, महिला अत्याचार, SC/ST, पोक्सो/दुष्कर्म, 60/90-दिवस निस्तारण, पेंडेंसी व वांछित अपराधी — ये सब पोर्टल के अपने डेटा से अपने-आप बनते हैं। निरोधात्मक कार्यवाही, सड़क दुर्घटना, माइनर एक्ट व माह की उपलब्धियां — ये पोर्टल में ट्रैक नहीं होते, इसलिए टेम्पलेट डाउनलोड करके अलग से तैयार करने होंगे।</div>
+      <div class="tpl-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="tpl-item" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:12.5px">
+          <b style="display:block;margin-bottom:4px;color:var(--navy)">🛡️ निरोधात्मक कार्यवाही</b>
+          वृत्त-वार 107/116, 151, HO एक्ट आदि की कार्यवाही व व्यक्ति संख्या
+          <br><button class="btn-ghost sm" style="padding:6px 10px;font-size:11.5px;margin-top:6px" onclick="downloadMcrTemplate('preventive')">📥 टेम्पलेट डाउनलोड</button>
+        </div>
+        <div class="tpl-item" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:12.5px">
+          <b style="display:block;margin-bottom:4px;color:var(--navy)">🚧 सड़क दुर्घटना</b>
+          थाना/वृत्त-वार वर्षवार दुर्घटना, मृतक, घायल संख्या
+          <br><button class="btn-ghost sm" style="padding:6px 10px;font-size:11.5px;margin-top:6px" onclick="downloadMcrTemplate('accident')">📥 टेम्पलेट डाउनलोड</button>
+        </div>
+        <div class="tpl-item" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:12.5px">
+          <b style="display:block;margin-bottom:4px;color:var(--navy)">⚖️ माइनर एक्ट की कार्यवाही</b>
+          अधिनियम का नाम, कुल कार्यवाही, व्यक्ति संख्या
+          <br><button class="btn-ghost sm" style="padding:6px 10px;font-size:11.5px;margin-top:6px" onclick="downloadMcrTemplate('minor')">📥 टेम्पलेट डाउनलोड</button>
+        </div>
+        <div class="tpl-item" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:12.5px">
+          <b style="display:block;margin-bottom:4px;color:var(--navy)">🏆 माह की महत्वपूर्ण उपलब्धियां</b>
+          क्रम संख्या व उपलब्धि का संक्षिप्त विवरण (नैरेटिव)
+          <br><button class="btn-ghost sm" style="padding:6px 10px;font-size:11.5px;margin-top:6px" onclick="downloadMcrTemplate('achievements')">📥 टेम्पलेट डाउनलोड</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2402,8 +2486,28 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
     </div>
     <div id="wrPivotBox"></div>
 
+    <div class="sh" style="margin:24px 0 10px;"><span class="tag" style="background:linear-gradient(135deg,#4A148C,#2A0A4F)">📅 माहवार विश्लेषण</span><h2 style="font-size:16px;">नए / निस्तारण / पेंडिंग — माह-दर-माह तुलना</h2></div>
+    <div class="ctx-bar">
+      <div class="note" style="margin-bottom:8px" id="wrSnapshotSummary">अभी तक कोई माहवार स्नैपशॉट सेव नहीं है — "📥 नया माह डेटा अपडेट करें" मॉडल में माह चुनकर अपलोड करें तो यहां विश्लेषण दिखेगा।</div>
+      <div class="ctx-grid">
+        <div>
+          <label>पंक्ति (Rows) अनुसार समूहित करें</label>
+          <select id="wrMonthlyPivotRow" onchange="renderWantedMonthlyPivot()"></select>
+        </div>
+        <div>
+          <label>स्तम्भ (Columns) अनुसार समूहित करें</label>
+          <select id="wrMonthlyPivotCol" onchange="renderWantedMonthlyPivot()"></select>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:8px;">
+          <button class="btn-fill sm" onclick="downloadWantedMonthlyPivot()">⬇️ पिवट CSV</button>
+        </div>
+      </div>
+      <div class="note" style="margin-top:8px;">इस सारणी में हर माह के अपलोड की तुलना ठीक पिछले सेव किए माह से होती है — पहले माह में सब कुछ "शुरुआती पेंडिंग" माना जाता है (कोई तुलना आधार नहीं)। किसी भी संख्या पर क्लिक करके सूची देखें।</div>
+    </div>
+    <div id="wrMonthlyPivotBox"></div>
+
     <div class="intro" style="border-top-color:var(--navy);margin-top:20px">
-      <b>डेटा अपडेट:</b> यह पेज जुलाई 2026 माह के डेटा पर आधारित है। नया माह अपडेट करने के लिए सेटिंग्स पेज में "🧹 वांछित सूची व्यवस्थापक" टूल से नई एक्सेल व्यवस्थित करें, फिर "🔍 वांछित अपराधी रजिस्टर" (मूल) टूल में पेस्ट/अपलोड करें और वहां से डाउनलोड की गई CSV इस पेज में अपडेट करवाने हेतु व्यवस्थापक को भेजें।
+      <b>डेटा अपडेट:</b> ऊपर "📥 नया माह डेटा अपडेट करें" से हर माह का डेटा माह/वर्ष चुनकर अपलोड करें — यही सूची व खोज को ताज़ा रखता है और "📅 माहवार विश्लेषण" वाला नया/निस्तारण/पेंडिंग विश्लेषण भी इसी से अपने-आप बनता है। एक्सेल पहले व्यवस्थित (साफ़) करनी हो तो नीचे दिया "🧹 वांछित सूची व्यवस्थापक" टूल इस्तेमाल कर सकते हैं, फिर उसकी आउटपुट यहीं ऊपर वाले मॉडल में अपलोड करें।
     </div>
   </div>
 </div>
@@ -3674,6 +3778,7 @@ function go(id){
   if(id==='dataQuality' && typeof renderDataQuality==='function'){ renderDataQuality(); }
   if(id==='myPending' && typeof ensureMyPendingLoaded==='function') ensureMyPendingLoaded();
   if(id==='wantedReg' && typeof ensureWantedRegLoaded==='function') ensureWantedRegLoaded();
+  if(id==='mcrBook' && typeof mcrInitSelects==='function'){ mcrInitSelects(); if(typeof renderMcrBook==='function') renderMcrBook(); }
 }
 
 // ============================================================
@@ -5574,6 +5679,379 @@ function buildRecords(){
 
 function allPS(){ return [...new Set(dbRecords.map(r=>r.ps))].sort(); }
 function allYears(){ return [...new Set(dbRecords.map(r=>r.year).filter(Boolean))].sort(); }
+
+// ============================================================
+// MCR BOOK — पोर्टल के अपने dbRecords (SAS Export) से सीधे मासिक अपराध प्रतिवेदन
+// ============================================================
+const MCR_HI_LABELS = {
+  // IPC_CATS
+  'Attempt to Commit Murder':'हत्या का प्रयास','Burglary':'नकबजनी','Dacoity':'डकैती',
+  'Kidnapping & Abduction':'व्यपहरण/अपहरण','Murder':'हत्या','Other BNS/IPC':'अन्य भा.द.सं./बी.एन.एस.',
+  'Rape(Major)':'दुष्कर्म (बालिग)','Rape(Minor)':'दुष्कर्म (नाबालिग)','Riots':'बलवा','Robbery':'लूट',
+  'Snatching':'चैन स्नेचिंग','Theft':'चोरी',
+  // SLL_CATS
+  'Arms Act':'शस्त्र अधिनियम','EC Act':'आवश्यक वस्तु अधिनियम','Excise Act':'आबकारी अधिनियम',
+  'Explosive Act':'एक्सप्लोसिव एक्ट','Gambling Ordinance':'जुआ अधिनियम','IT Act':'आई.टी. एक्ट',
+  'NDPS Act':'स्वापक औषधी एवं मादक द्रव्य अधिनियम','Noise Pollution':'ध्वनि प्रदूषण एक्ट','Other SLL':'अन्य स्थानीय एवं विशेष अधिनियम',
+  // WA_CATS अतिरिक्त
+  'Abetment of Suicide':'आत्महत्या हेतु दुष्प्रेरण','Dowry Death':'दहेज मृत्यु','Molestation':'छेड़छाड़',
+  'Others':'अन्य','Rape with Murder':'दुष्कर्म के साथ हत्या','Women Harassment':'महिला उत्पीड़न',
+  // SCST_CATS अतिरिक्त
+  'Arson':'आगजनी','Grievous Hurt':'गंभीर चोट','The SC/ST (Prevention of Atrocities) Act':'एस.सी./एस.टी. एक्ट धारा 3',
+  // POCSO_CATS
+  'Gang Rape (Minor)':'सामूहिक दुष्कर्म (नाबालिग)','Other POCSO Act':'अन्य पोक्सो एक्ट',
+  'Rape (Minor)':'दुष्कर्म (नाबालिग)','Rape with Murder (Minor)':'दुष्कर्म के साथ हत्या (नाबालिग)',
+  // RAPE_CATS
+  'Gang Rape (Major)':'सामूहिक दुष्कर्म (बालिग)','Rape (Major)':'दुष्कर्म (बालिग)',
+};
+function mcrHi(cat){ return MCR_HI_LABELS[cat] || cat; }
+const MCR_BOOK_BADGE_SVG = `<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M32 4 L56 14 V30 C56 46 46 56 32 60 C18 56 8 46 8 30 V14 Z" stroke="#B8862E" stroke-width="2.5" fill="rgba(184,134,46,.1)"/>
+  <path d="M32 16 L32 40 M22 26 L42 26" stroke="#B8862E" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="32" cy="46" r="4" stroke="#B8862E" stroke-width="2"/>
+</svg>`;
+/** एक "book-page" शैली सेक्शन में कोई भी सामग्री लपेटता है — जिला MCR-बुक टूल के डिज़ाइन जैसा
+ * (हेडर में शीर्षक+बैज, फुटर में अवधि+शाखा नाम) */
+function mcrBookSection(title, bodyHtml, periodLabel){
+  return `<div class="mcr-book-page mcr-book-section">
+    <div class="mcr-book-section-head">
+      <div><div class="mcr-t1">जिला MCR बुक — डीडवाना-कुचामन</div><h2>${title}</h2></div>
+      <div class="mcr-badge-mini">${MCR_BOOK_BADGE_SVG}</div>
+    </div>
+    <div class="mcr-book-section-body">${bodyHtml}</div>
+    <div class="mcr-book-section-foot"><span>अवधि: ${periodLabel}</span><span>डीडवाना-कुचामन पुलिस — सांख्यिकी शाखा</span></div>
+  </div>`;
+}
+
+function mcrInitSelects(){
+  const sel = document.getElementById('mcrYear');
+  if(!sel || sel.options.length) return;
+  const years = allYears();
+  const latest = years.length ? years[years.length-1] : CY;
+  years.slice().reverse().forEach(y=>{ const o=document.createElement('option'); o.value=y; o.textContent=y; sel.appendChild(o); });
+  sel.value = latest;
+}
+
+/** किसी हेड (ipc/sll/wa/scst/pocso/rape) की एक श्रेणी-सूची के लिए 3-वर्षीय तुलनात्मक तालिका बनाता है */
+function mcrBuildTable(field, cats, years){
+  const rows = cats.map(cat=>{
+    const counts = years.map(y=> dbRecords.filter(r=>r[field]===cat && r.year===y).length);
+    return { label: mcrHi(cat), counts };
+  });
+  const totalRow = { label: 'योग', counts: years.map((y,i)=> rows.reduce((s,r)=>s+r.counts[i],0)) };
+  rows.push(totalRow);
+  return rows;
+}
+function mcrTableHTML(title, rows, years){
+  let h = `<h3 style="font-size:14px;margin:16px 0 8px;color:var(--navy)">${title}</h3>`;
+  h += `<div style="overflow-x:auto"><table class="data-tbl" style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr><th style="border:1px solid #999;padding:5px;background:var(--navy);color:#fff">शीर्षक</th>${years.map(y=>`<th style="border:1px solid #999;padding:5px;background:var(--navy);color:#fff">${y}</th>`).join('')}</tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const isTotal = r.label==='योग';
+    h += `<tr${isTotal?' style="font-weight:700;background:#F1F3F8"':''}><td style="border:1px solid #999;padding:5px;text-align:right">${r.label}</td>${r.counts.map(c=>`<td style="border:1px solid #999;padding:5px;text-align:center">${c}</td>`).join('')}</tr>`;
+  });
+  h += `</tbody></table></div>`;
+  return h;
+}
+
+/** थानावार (station-wise) श्रेणी-वार तालिका — तालिका क/ग/घ जैसी */
+function mcrStationTable(field, cats, year){
+  const stations = ALL_PS_EN.slice().sort((a,b)=>(ENG2HI_PS[a]||a).localeCompare(ENG2HI_PS[b]||b));
+  const rows = stations.map(ps=>{
+    const counts = cats.map(cat=> dbRecords.filter(r=>r.ps===ps && r[field]===cat && r.year===year).length);
+    return { label: ENG2HI_PS[ps]||ps, counts, total: counts.reduce((a,b)=>a+b,0) };
+  });
+  const totalRow = { label:'योग', counts: cats.map((c,i)=> rows.reduce((s,r)=>s+r.counts[i],0)), total: rows.reduce((s,r)=>s+r.total,0) };
+  rows.push(totalRow);
+  return rows;
+}
+function mcrStationTableHTML(title, rows, cats){
+  let h = `<h3 style="font-size:14px;margin:16px 0 8px;color:var(--navy)">${title}</h3>`;
+  h += `<div style="overflow-x:auto"><table class="data-tbl" style="width:100%;border-collapse:collapse;font-size:11px">
+    <thead><tr><th style="border:1px solid #999;padding:4px;background:var(--navy);color:#fff;text-align:left">थाना</th>${cats.map(c=>`<th style="border:1px solid #999;padding:4px;background:var(--navy);color:#fff">${mcrHi(c)}</th>`).join('')}<th style="border:1px solid #999;padding:4px;background:var(--navy);color:#fff">योग</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const isTotal = r.label==='योग';
+    h += `<tr${isTotal?' style="font-weight:700;background:#F1F3F8"':''}><td style="border:1px solid #999;padding:4px">${r.label}</td>${r.counts.map(c=>`<td style="border:1px solid #999;padding:4px;text-align:center">${c}</td>`).join('')}<td style="border:1px solid #999;padding:4px;text-align:center;font-weight:700">${r.total}</td></tr>`;
+  });
+  h += `</tbody></table></div>`;
+  return h;
+}
+/** थानावार निस्तारण स्थिति — दर्ज/निस्तारित/पेंडिंग/चालानी% (किसी हेड की सभी श्रेणियां मिलाकर) */
+function mcrStationDisposalTable(field, cats, year){
+  const stations = ALL_PS_EN.slice().sort((a,b)=>(ENG2HI_PS[a]||a).localeCompare(ENG2HI_PS[b]||b));
+  const rows = stations.map(ps=>{
+    const base = dbRecords.filter(r=>r.ps===ps && cats.includes(r[field]) && r.year===year);
+    const total = base.length;
+    const disposed = base.filter(r=>r.disposal && r.disposal!=='Pending').length;
+    const chargesheet = base.filter(r=>r.disposal==='Chargesheet').length;
+    const pending = total-disposed;
+    const chalaniPct = total ? (chargesheet/total*100) : 0;
+    return { label: ENG2HI_PS[ps]||ps, total, disposed, pending, chalaniPct };
+  });
+  const t = { label:'योग', total:0, disposed:0, pending:0 };
+  rows.forEach(r=>{ t.total+=r.total; t.disposed+=r.disposed; t.pending+=r.pending; });
+  t.chalaniPct = 0; // (केवल संदर्भ हेतु — व्यक्तिगत थाना पंक्तियों में सटीक %)
+  rows.push(t);
+  return rows;
+}
+function mcrStationDisposalHTML(title, rows){
+  let h = `<h3 style="font-size:14px;margin:16px 0 8px;color:var(--navy)">${title}</h3>`;
+  h += `<div style="overflow-x:auto"><table class="data-tbl" style="width:100%;border-collapse:collapse;font-size:11.5px">
+    <thead><tr><th style="border:1px solid #999;padding:4px;background:var(--navy);color:#fff;text-align:left">थाना</th><th style="border:1px solid #999;padding:4px;background:var(--navy);color:#fff">दर्ज</th><th style="border:1px solid #999;padding:4px;background:var(--navy);color:#fff">निस्तारित</th><th style="border:1px solid #999;padding:4px;background:var(--navy);color:#fff">पेंडिंग</th><th style="border:1px solid #999;padding:4px;background:var(--navy);color:#fff">चालानी %</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const isTotal = r.label==='योग';
+    h += `<tr${isTotal?' style="font-weight:700;background:#F1F3F8"':''}><td style="border:1px solid #999;padding:4px">${r.label}</td><td style="border:1px solid #999;padding:4px;text-align:center">${r.total}</td><td style="border:1px solid #999;padding:4px;text-align:center">${r.disposed}</td><td style="border:1px solid #999;padding:4px;text-align:center">${r.pending}</td><td style="border:1px solid #999;padding:4px;text-align:center">${isTotal?'-':r.chalaniPct.toFixed(1)+'%'}</td></tr>`;
+  });
+  h += `</tbody></table></div>`;
+  return h;
+}
+/** तालिका छ — थानावार पेंडिंग अभियोग (सभी हेड मिलाकर: IPC+SLL+Women+SCST+POCSO+Rape) */
+function mcrStationPendingTable(year){
+  const stations = ALL_PS_EN.slice().sort((a,b)=>(ENG2HI_PS[a]||a).localeCompare(ENG2HI_PS[b]||b));
+  const rows = stations.map(ps=>{
+    const base = dbRecords.filter(r=>r.ps===ps && r.year===year && (r.ipc||r.sll||r.wa||r.scst||r.pocso||r.rape));
+    const total = base.length;
+    const pending = base.filter(r=>!r.disposal || r.disposal==='Pending').length;
+    return { label: ENG2HI_PS[ps]||ps, total, pending, pct: total?(pending/total*100):0 };
+  });
+  const t = { label:'योग', total:0, pending:0 };
+  rows.forEach(r=>{ t.total+=r.total; t.pending+=r.pending; });
+  t.pct = t.total ? (t.pending/t.total*100) : 0;
+  rows.push(t);
+  return rows;
+}
+function mcrStationPendingHTML(rows){
+  let h = `<h3 style="font-size:14px;margin:16px 0 8px;color:var(--navy)">तालिका छ — थानावार पेंडिंग अभियोग (सभी हेड मिलाकर)</h3>`;
+  h += `<div style="overflow-x:auto"><table class="data-tbl" style="width:100%;border-collapse:collapse;font-size:11.5px">
+    <thead><tr><th style="border:1px solid #999;padding:4px;background:var(--navy);color:#fff;text-align:left">थाना</th><th style="border:1px solid #999;padding:4px;background:var(--navy);color:#fff">कुल दर्ज</th><th style="border:1px solid #999;padding:4px;background:var(--navy);color:#fff">पेंडिंग</th><th style="border:1px solid #999;padding:4px;background:var(--navy);color:#fff">पेंडिंग %</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const isTotal = r.label==='योग';
+    h += `<tr${isTotal?' style="font-weight:700;background:#F1F3F8"':''}><td style="border:1px solid #999;padding:4px">${r.label}</td><td style="border:1px solid #999;padding:4px;text-align:center">${r.total}</td><td style="border:1px solid #999;padding:4px;text-align:center">${r.pending}</td><td style="border:1px solid #999;padding:4px;text-align:center">${r.pct.toFixed(1)}%</td></tr>`;
+  });
+  h += `</tbody></table></div>`;
+  return h;
+}
+
+let MCR_LAST_YEARS = null;
+/** माहवार (month-wise) तुलनात्मक तालिका — चयनित वर्ष के लिए, चालू वर्ष हो तो अभी तक के माह तक सीमित */
+function mcrBuildMonthTable(field, cats, year){
+  const curMonth = (year===new Date().getFullYear()) ? (new Date().getMonth()+1) : 12;
+  const months = []; for(let m=1;m<=curMonth;m++) months.push(m);
+  const rows = cats.map(cat=>{
+    const counts = months.map(m=> dbRecords.filter(r=>r[field]===cat && r.year===year && r.month===m).length);
+    return { label: mcrHi(cat), counts };
+  });
+  const totalRow = { label:'योग', counts: months.map((m,i)=> rows.reduce((s,r)=>s+r.counts[i],0)) };
+  rows.push(totalRow);
+  return { rows, months };
+}
+function mcrMonthTableHTML(title, data){
+  const { rows, months } = data;
+  let h = `<h4 style="font-size:12.5px;margin:12px 0 6px;color:var(--navy)">${title}</h4>`;
+  h += `<div style="overflow-x:auto"><table class="data-tbl" style="width:100%;border-collapse:collapse;font-size:10.5px">
+    <thead><tr><th style="border:1px solid #999;padding:3px;background:#3B4A6B;color:#fff;text-align:left">शीर्षक</th>${months.map(m=>`<th style="border:1px solid #999;padding:3px;background:#3B4A6B;color:#fff">${MONTHS[m-1].slice(0,3)}</th>`).join('')}</tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const isTotal = r.label==='योग';
+    h += `<tr${isTotal?' style="font-weight:700;background:#F1F3F8"':''}><td style="border:1px solid #999;padding:3px;text-align:right">${r.label}</td>${r.counts.map(c=>`<td style="border:1px solid #999;padding:3px;text-align:center">${c}</td>`).join('')}</tr>`;
+  });
+  h += `</tbody></table></div>`;
+  return h;
+}
+/** किसी हेड की हर श्रेणी (category) की निस्तारण-स्थिति — दर्ज/निस्तारित/पेंडिंग/चालानी% (जिला-योग, चयनित वर्ष) */
+function mcrDisposalTable(field, cats, year){
+  const rows = cats.map(cat=>{
+    const base = dbRecords.filter(r=>r[field]===cat && r.year===year);
+    const total = base.length;
+    const chargesheet = base.filter(r=>r.disposal==='Chargesheet').length;
+    const disposed = base.filter(r=>r.disposal && r.disposal!=='Pending').length;
+    const pending = total-disposed;
+    return { label: mcrHi(cat), total, disposed, pending, chalaniPct: total?(chargesheet/total*100):0 };
+  });
+  const t = { label:'योग', total:0, disposed:0, pending:0 };
+  rows.forEach(r=>{ t.total+=r.total; t.disposed+=r.disposed; t.pending+=r.pending; });
+  t.chalaniPct = t.total ? (rows.reduce((s,r)=>s+(r.chalaniPct*r.total/100),0)/t.total*100) : 0;
+  rows.push(t);
+  return rows;
+}
+function mcrDisposalTableHTML(title, rows){
+  let h = `<h4 style="font-size:12.5px;margin:12px 0 6px;color:var(--navy)">${title}</h4>`;
+  h += `<div style="overflow-x:auto"><table class="data-tbl" style="width:100%;border-collapse:collapse;font-size:11px">
+    <thead><tr><th style="border:1px solid #999;padding:4px;background:#3B4A6B;color:#fff;text-align:left">शीर्षक</th><th style="border:1px solid #999;padding:4px;background:#3B4A6B;color:#fff">दर्ज</th><th style="border:1px solid #999;padding:4px;background:#3B4A6B;color:#fff">निस्तारित</th><th style="border:1px solid #999;padding:4px;background:#3B4A6B;color:#fff">पेंडिंग</th><th style="border:1px solid #999;padding:4px;background:#3B4A6B;color:#fff">चालानी %</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const isTotal = r.label==='योग';
+    h += `<tr${isTotal?' style="font-weight:700;background:#F1F3F8"':''}><td style="border:1px solid #999;padding:4px;text-align:right">${r.label}</td><td style="border:1px solid #999;padding:4px;text-align:center">${r.total}</td><td style="border:1px solid #999;padding:4px;text-align:center">${r.disposed}</td><td style="border:1px solid #999;padding:4px;text-align:center">${r.pending}</td><td style="border:1px solid #999;padding:4px;text-align:center">${r.chalaniPct.toFixed(1)}%</td></tr>`;
+  });
+  h += `</tbody></table></div>`;
+  return h;
+}
+/** एक पूरा हेड-सेक्शन — वर्षवार तुलनात्मक + माहवार तुलनात्मक + निस्तारण-स्थिति, तीनों एक साथ */
+function mcrHeadSection(num, title, field, cats, years, curY){
+  let body = mcrTableHTML(`${num}.1 — वर्षवार तुलनात्मक (${years.join(', ')})`, mcrBuildTable(field, cats, years), years);
+  body += mcrMonthTableHTML(`${num}.2 — माहवार तुलनात्मक (वर्ष ${curY})`, mcrBuildMonthTable(field, cats, curY));
+  body += mcrDisposalTableHTML(`${num}.3 — निस्तारण स्थिति (वर्ष ${curY})`, mcrDisposalTable(field, cats, curY));
+  return mcrBookSection(`${num}. ${title}`, body, 'वर्ष '+curY);
+}
+
+function renderMcrBook(){
+  const sel = document.getElementById('mcrYear');
+  const curY = sel ? parseInt(sel.value) : CY;
+  const years = [curY-2, curY-1, curY];
+  MCR_LAST_YEARS = years;
+  const todayStr = new Date().toLocaleDateString('hi-IN', {day:'2-digit', month:'long', year:'numeric'});
+
+  // ---- कवर पेज (book-cover शैली) ----
+  let h = `<div class="mcr-book-page mcr-book-cover">
+    <div class="mcr-k1">राजस्थान पुलिस</div>
+    <div class="mcr-badge">${MCR_BOOK_BADGE_SVG}</div>
+    <h1>जिला मासिक अपराध प्रतिवेदन</h1>
+    <h2>(MCR बुक)</h2>
+    <div class="mcr-div-line"></div>
+    <div class="mcr-k2">जिला</div>
+    <div class="mcr-k3">डीडवाना–कुचामन</div>
+    <div class="mcr-k2">रिपोर्टिंग वर्ष</div>
+    <div class="mcr-k3" style="margin-bottom:8px">${curY}</div>
+    <div class="mcr-foot">तैयार किया गया: <b>${todayStr}</b> &nbsp;•&nbsp; कार्यालय अधीक्षक पुलिस, डीडवाना-कुचामन — सांख्यिकी शाखा (पोर्टल के SAS Export डेटा से स्वतः)</div>
+  </div>`;
+
+  // ---- अनुक्रमणिका (TOC) — book-toc शैली ----
+  const tocGroups = [
+    { grp:'जिला-कुल तुलनात्मक', items:[
+      'भा.द.सं. / बी.एन.एस. — वर्षवार/माहवार तुलनात्मक व निस्तारण',
+      'स्थानीय एवं विशेष अधिनियम (SLL) — वर्षवार/माहवार तुलनात्मक व निस्तारण',
+      'महिला अत्याचार — वर्षवार/माहवार तुलनात्मक व निस्तारण',
+      'अनुसूचित जाति/जनजाति अत्याचार (SC/ST एक्ट) — वर्षवार/माहवार तुलनात्मक व निस्तारण',
+      'पोक्सो एक्ट (नाबालिग) — वर्षवार/माहवार तुलनात्मक व निस्तारण',
+      'बलात्कार (बालिग) — वर्षवार/माहवार तुलनात्मक व निस्तारण',
+    ]},
+    { grp:'थानावार तालिकाएं', items:[
+      'तालिका क — थानावार भा.द.सं./बी.एन.एस. तुलनात्मक',
+      'तालिका ख — थानावार भा.द.सं./बी.एन.एस. निस्तारण',
+      'तालिका ग (1/2) — थानावार महिला/SC-ST अत्याचार',
+      'तालिका घ (1/2) — थानावार SLL/पोक्सो',
+      'तालिका छ — थानावार पेंडिंग अभियोग (पेंडेंसी पेज पद्धति)',
+    ]},
+    { grp:'जिला-योग सारांश', items:[
+      '60/90-दिवस निस्तारण अनुपालन',
+      'पेंडेंसी सारांश',
+      'वांछित अपराधी — सारांश',
+    ]},
+  ];
+  let tocIdx = 0;
+  h += `<div class="mcr-book-page mcr-book-toc"><h2>अनुक्रमणिका (Table of Contents)</h2>`;
+  tocGroups.forEach(g=>{
+    h += `<div class="mcr-toc-grp">${g.grp}</div>`;
+    g.items.forEach(t=>{ tocIdx++; h += `<div class="mcr-toc-row"><span><span class="mcr-n">${tocIdx}.</span>${t}</span></div>`; });
+  });
+  h += `<div class="note" style="margin-top:16px">पृष्ठ क्रमांक Word/प्रिंट दृश्य में दस्तावेज़ के स्वतः पेजिनेशन अनुसार दिखेंगे।</div></div>`;
+
+  h += mcrHeadSection(1, 'भा.द.सं. / बी.एन.एस.', 'ipc', IPC_CATS, years, curY);
+  h += mcrHeadSection(2, 'स्थानीय एवं विशेष अधिनियम (SLL)', 'sll', SLL_CATS, years, curY);
+  h += mcrHeadSection(3, 'महिला अत्याचार', 'wa', WA_CATS, years, curY);
+  h += mcrHeadSection(4, 'अनुसूचित जाति/जनजाति अत्याचार (SC/ST एक्ट)', 'scst', SCST_CATS, years, curY);
+  h += mcrHeadSection(5, 'पोक्सो एक्ट (नाबालिग)', 'pocso', POCSO_CATS, years, curY);
+  h += mcrHeadSection(6, 'बलात्कार (बालिग)', 'rape', RAPE_CATS, years, curY);
+
+  // थानावार तालिकाएं (तालिका क-छ) — चयनित (चालू) वर्ष के लिए, हर तालिका अपने book-page पर
+  h += mcrBookSection('तालिका क — थानावार भा.द.सं./बी.एन.एस. तुलनात्मक', mcrStationTableHTML('', mcrStationTable('ipc', IPC_CATS, curY), IPC_CATS), 'वर्ष '+curY);
+  h += mcrBookSection('तालिका ख — थानावार भा.द.सं./बी.एन.एस. निस्तारण', mcrStationDisposalHTML('', mcrStationDisposalTable('ipc', IPC_CATS, curY)), 'वर्ष '+curY);
+  h += mcrBookSection('तालिका ग (1) — थानावार महिला अत्याचार तुलनात्मक', mcrStationTableHTML('', mcrStationTable('wa', WA_CATS, curY), WA_CATS), 'वर्ष '+curY);
+  h += mcrBookSection('तालिका ग (2) — थानावार SC/ST अत्याचार तुलनात्मक', mcrStationTableHTML('', mcrStationTable('scst', SCST_CATS, curY), SCST_CATS), 'वर्ष '+curY);
+  h += mcrBookSection('तालिका घ (1) — थानावार स्थानीय व विशेष अधिनियम (SLL)', mcrStationTableHTML('', mcrStationTable('sll', SLL_CATS, curY), SLL_CATS), 'वर्ष '+curY);
+  h += mcrBookSection('तालिका घ (2) — थानावार पोक्सो एक्ट', mcrStationTableHTML('', mcrStationTable('pocso', POCSO_CATS, curY), POCSO_CATS), 'वर्ष '+curY);
+
+  // तालिका छ — पूरी तरह पेंडेंसी पेज की उसी पद्धति (aggregatePendency/buildPendencyRows) से
+  let pendBody;
+  try{
+    const pendRows = buildPendencyRows('generic');
+    const pendAgg = aggregatePendency(pendRows, curY);
+    pendBody = pendencyTableHTML(pendAgg, curY);
+  }catch(e){
+    pendBody = `<div class="note">पेंडेंसी डेटा अभी उपलब्ध नहीं — पोर्टल का "📉 पेंडेंसी रैंकिंग" पेज एक बार खोलकर देखें।</div>`;
+  }
+  h += mcrBookSection('तालिका छ — थानावार पेंडिंग अभियोग (पेंडेंसी पेज की पद्धति अनुसार)', pendBody, 'वर्ष '+curY);
+
+  // 60/90-दिवस निस्तारण सारांश — मौजूदा disp60/disp90 वाला ही डेटा-स्रोत/फॉर्मूला
+  let dispBody = `<div style="overflow-x:auto"><table class="data-tbl" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>
+    <th style="border:1px solid #999;padding:5px;background:var(--navy);color:#fff">श्रेणी</th><th style="border:1px solid #999;padding:5px;background:var(--navy);color:#fff">कुल प्रकरण</th>
+    <th style="border:1px solid #999;padding:5px;background:var(--navy);color:#fff">समय पर निस्तारित</th><th style="border:1px solid #999;padding:5px;background:var(--navy);color:#fff">विलंबित</th>
+    <th style="border:1px solid #999;padding:5px;background:var(--navy);color:#fff">Pending (सीमा से अधिक)</th><th style="border:1px solid #999;padding:5px;background:var(--navy);color:#fff">अनुपालन %</th></tr></thead><tbody>`;
+  [60,90].forEach(lim=>{
+    try{
+      const agg = aggregateDisposal(buildRowsGeneric(lim, null), lim);
+      const d = agg.district;
+      dispBody += `<tr><td style="border:1px solid #999;padding:5px">${lim} दिवस श्रेणी</td><td style="border:1px solid #999;padding:5px;text-align:center">${d.c1}</td><td style="border:1px solid #999;padding:5px;text-align:center">${d.c2}</td><td style="border:1px solid #999;padding:5px;text-align:center">${d.c3}</td><td style="border:1px solid #999;padding:5px;text-align:center">${d.c5}</td><td style="border:1px solid #999;padding:5px;text-align:center;font-weight:700">${d.compPct.toFixed(1)}%</td></tr>`;
+    }catch(e){ dispBody += `<tr><td colspan="6" style="border:1px solid #999;padding:5px;color:#999">${lim} दिवस — डेटा उपलब्ध नहीं</td></tr>`; }
+  });
+  dispBody += `</tbody></table></div>`;
+
+  // पेंडेंसी सारांश (त्वरित)
+  const totalCases = dbRecords.filter(r=>r.year===curY).length;
+  const pendingCases = dbRecords.filter(r=>r.year===curY && r.disposal==='Pending').length;
+  const pendPct = totalCases ? (pendingCases/totalCases*100).toFixed(1) : '0.0';
+  dispBody += `<h4 style="font-size:12.5px;margin:16px 0 6px;color:var(--navy)">पेंडेंसी सारांश</h4>`;
+  dispBody += `<div class="note">वर्ष ${curY} में कुल दर्ज: <b>${totalCases}</b> — लंबित: <b>${pendingCases}</b> (${pendPct}%). विस्तृत थानावार/वृत्तवार रैंकिंग तालिका छ में ऊपर व पोर्टल के "📉 पेंडेंसी रैंकिंग" पेज पर भी उपलब्ध है।</div>`;
+
+  // वांछित अपराधी सारांश
+  dispBody += `<h4 style="font-size:12.5px;margin:16px 0 6px;color:var(--navy)">वांछित अपराधी — सारांश</h4>`;
+  dispBody += `<div class="note">कुल वर्तमान वांछित अपराधी: <b>${WANTED_DATA.length.toLocaleString('en-IN')}</b>. माहवार नए/निस्तारण/पेंडिंग विश्लेषण हेतु "🔍 वांछित अपराधी रजिस्टर" पेज का "📅 माहवार विश्लेषण" सेक्शन देखें।</div>`;
+
+  dispBody += `<div class="note" style="margin-top:16px;color:#777">नोट: राज्य-स्तरीय MCR Book के जिलेवार (सभी जिलों की तुलना) टेबल इस जिला-स्तरीय रिपोर्ट पर लागू नहीं होते, इसलिए शामिल नहीं। निरोधात्मक कार्यवाही, सड़क दुर्घटना, माइनर एक्ट व माह की उपलब्धियां — नीचे टेम्पलेट डाउनलोड कर अलग से तैयार करें।</div>`;
+  h += mcrBookSection('7-9. जिला-योग सारांश (60/90-दिवस, पेंडेंसी, वांछित अपराधी)', dispBody, 'वर्ष '+curY);
+
+  document.getElementById('mcrBookArea').innerHTML = h;
+  document.getElementById('mcrBookActions').style.display = '';
+}
+
+
+function downloadMcrBookWord(){
+  const area = document.getElementById('mcrBookArea');
+  if(!area || !area.innerHTML.trim()){ toast('पहले "🔍 रिपोर्ट बनाएं" दबाएं'); return; }
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+  <head><meta charset="utf-8"><title>MCR Book</title>
+  <style>body{font-family:'Nirmala UI','Mangal',sans-serif}</style></head>
+  <body>${area.innerHTML}</body></html>`;
+  const blob = new Blob(['\ufeff', html], { type:'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'MCR-Book-'+(MCR_LAST_YEARS?MCR_LAST_YEARS[2]:CY)+'.doc';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('✅ Word फाइल डाउनलोड हो गई');
+}
+function printMcrBook(){
+  const area = document.getElementById('mcrBookArea');
+  if(!area || !area.innerHTML.trim()){ toast('पहले "🔍 रिपोर्ट बनाएं" दबाएं'); return; }
+  const w = window.open('', '_blank');
+  w.document.write(`<html><head><meta charset="utf-8"><title>MCR Book Print</title>
+    <style>body{font-family:'Nirmala UI','Mangal',sans-serif;padding:20px}@media print{body{padding:0}}</style>
+    </head><body>${area.innerHTML}</body></html>`);
+  w.document.close();
+  setTimeout(()=>w.print(), 400);
+}
+function downloadMcrTemplate(kind){
+  let headers=[], sample=[], filename='';
+  if(kind==='preventive'){
+    headers=['वृत्त','धारा/अधिनियम','वर्ष','कुल कार्यवाही की संख्या','कुल व्यक्तियों की संख्या'];
+    sample=['वृत्त का नाम उदाहरण','107/116 द.प्र.सं./126/135 बी.एन.एस.एस.',CY,0,0];
+    filename='template-preventive-action.xlsx';
+  } else if(kind==='accident'){
+    headers=['थाना/वृत्त','वर्ष','कुल दुर्घटनाएं','मृतक संख्या','घायल संख्या'];
+    sample=['थाना/वृत्त का नाम', CY, 0,0,0];
+    filename='template-road-accident.xlsx';
+  } else if(kind==='minor'){
+    headers=['अधिनियम का नाम','कुल कार्यवाही','व्यक्ति संख्या'];
+    sample=['उदाहरण: मोटर व्हीकल एक्ट', 0,0];
+    filename='template-minor-acts.xlsx';
+  } else if(kind==='achievements'){
+    headers=['क्रम संख्या','उपलब्धि का संक्षिप्त विवरण'];
+    sample=[1, 'यहां माह की महत्वपूर्ण उपलब्धि का विवरण लिखें'];
+    filename='template-achievements.xlsx';
+  }
+  const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Template');
+  XLSX.writeFile(wb, filename);
+}
 
 /* ===================== GENERIC MULTI-SELECT DROPDOWN (checkbox based, mobile friendly) ===================== */
 function buildMultiSelect(elId, allOptions, selectedSet, placeholder, onChange, labelFn){
@@ -9602,10 +10080,11 @@ const SHEET_IDS = {
   gen: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng',
   fdc: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng',
   sas: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng',
-  wanted: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng'
+  wanted: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng',
+  wantedHistory: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng'
 };
 // चारों एक ही Google Sheet में अलग-अलग टैब (tabs) पर हैं — टैब का नाम मायने रखता है
-const SHEET_TABS = { gen:'Generic', fdc:'FDC', sas:'SAS', wanted:'Wanted' };
+const SHEET_TABS = { gen:'Generic', fdc:'FDC', sas:'SAS', wanted:'Wanted', wantedHistory:'WantedHistory' };
 function gvizUrl(id, tabName){ return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}&_cb=${Date.now()}`; }
 function exportUrl(id, tabName){ return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}&_cb2=${Date.now()}_${Math.random()}`; }
 
@@ -10351,7 +10830,7 @@ function handleGenFile(evt){
 
 function openFdcModal(){ document.getElementById('fdcModalBg').classList.add('show'); }
 function closeFdcModal(){ document.getElementById('fdcModalBg').classList.remove('show'); }
-function openWrModal(){ document.getElementById('wrModalBg').classList.add('show'); }
+function openWrModal(){ wrPopulateSnapMonthYearSelects(); document.getElementById('wrModalBg').classList.add('show'); }
 function closeWrModal(){ document.getElementById('wrModalBg').classList.remove('show'); }
 function handleFdcFile(evt){
   const file = evt.target.files[0];
@@ -12166,6 +12645,97 @@ function openWantedOrganizerTool(){ openHtmlInNewWindow(WANTED_ORGANIZER_B64); }
 
 let wantedRegLoaded=false;
 let WANTED_DATA = [];
+// ---------- माहवार स्नैपशॉट (नए/निस्तारण/पेंडिंग विश्लेषण हेतु) ----------
+let WANTED_SNAPSHOTS = []; // [{month:'2026-02', label:'फरवरी 2026', data:[...]}], कालक्रमानुसार (ascending)
+function wrSnapshotKey(r){ return (r.s||'')+'|'+(r.fir||'')+'|'+(r.n||'').trim().toLowerCase().slice(0,40); }
+function wrLoadSnapshotsFromStorage(){
+  try{ const raw = localStorage.getItem('wr_snapshots_v1'); if(raw) WANTED_SNAPSHOTS = JSON.parse(raw)||[]; }catch(e){ WANTED_SNAPSHOTS = []; }
+}
+function wrSaveSnapshotsToStorage(){
+  try{ localStorage.setItem('wr_snapshots_v1', JSON.stringify(WANTED_SNAPSHOTS)); }catch(e){ /* स्टोरेज भर गया हो तो चुपचाप छोड़ें */ }
+}
+/** नया माह-स्नैपशॉट सेव करता है (उसी माह का पहले से हो तो बदल देता है), फिर WANTED_DATA को
+ * नवीनतम माह पर सेट करता है ताकि खोज/सूची हमेशा सबसे ताज़ा माह दिखाए। */
+/** माहवार वांछित-अपराधी इतिहास को Google Sheet के "WantedHistory" टैब में भी सहेजता है,
+ * ताकि यह सिर्फ इसी डिवाइस तक सीमित न रहे — दूसरे डिवाइस पर भी यही इतिहास दिखे। */
+function wrPushHistoryToSheet(){
+  if(!isSheetWriteConfigured()) return;
+  const keys = Object.keys(WANTED_FIELD_LABELS);
+  const header = ['Month','MonthLabel', ...keys.map(k=>WANTED_FIELD_LABELS[k])];
+  const aoa = [header];
+  WANTED_SNAPSHOTS.forEach(s=>{
+    s.data.forEach(r=>{
+      aoa.push([s.month, s.label, ...keys.map(k=>r[k]||'')]);
+    });
+  });
+  pushSheetUpdate('wantedHistory', aoa, 'replace').catch(()=>{ /* चुपचाप — यह पृष्ठभूमि सिंक है, मुख्य सेव पहले ही हो चुका */ });
+}
+/** पेज खुलते समय — यदि इसी डिवाइस पर स्थानीय माहवार इतिहास खाली है, तो Google Sheet के
+ * "WantedHistory" टैब से पुनर्निर्मित करने की कोशिश करता है (दूसरे डिवाइस से अपलोड किया गया इतिहास)। */
+async function wrRestoreHistoryFromSheetIfEmpty(){
+  if(WANTED_SNAPSHOTS.length) return; // स्थानीय इतिहास पहले से है — यहीं भरोसा रखें
+  try{
+    const aoa = await fetchSheetAOA(SHEET_IDS.wantedHistory, SHEET_TABS.wantedHistory);
+    if(!aoa || aoa.length<2) return;
+    const header = aoa[0];
+    const keys = Object.keys(WANTED_FIELD_LABELS);
+    const byMonth = {};
+    for(let i=1;i<aoa.length;i++){
+      const row = aoa[i]; if(!row || !row[0]) continue;
+      const month = row[0], label = row[1]||month;
+      const rec = {};
+      keys.forEach((k,ki)=>{ rec[k] = row[2+ki]||''; });
+      if(!byMonth[month]) byMonth[month] = {month, label, data:[]};
+      byMonth[month].data.push(rec);
+    }
+    const restored = Object.values(byMonth).sort((a,b)=>a.month.localeCompare(b.month));
+    if(restored.length){
+      WANTED_SNAPSHOTS = restored;
+      wrSaveSnapshotsToStorage();
+      const latest = WANTED_SNAPSHOTS[WANTED_SNAPSHOTS.length-1];
+      if(!WANTED_DATA.length) WANTED_DATA = latest.data;
+      toast('🟢 वांछित अपराधी — माहवार इतिहास Sheet से बहाल हुआ ('+WANTED_SNAPSHOTS.length+' माह)');
+    }
+  }catch(e){ /* चुपचाप — कोई इतिहास न मिले तो खाली स्थिति में ही रहेगा */ }
+}
+function wrAddSnapshot(monthKey, monthLabel, data){
+  const idx = WANTED_SNAPSHOTS.findIndex(s=>s.month===monthKey);
+  if(idx>-1) WANTED_SNAPSHOTS[idx] = {month:monthKey, label:monthLabel, data};
+  else { WANTED_SNAPSHOTS.push({month:monthKey, label:monthLabel, data}); WANTED_SNAPSHOTS.sort((a,b)=>a.month.localeCompare(b.month)); }
+  wrSaveSnapshotsToStorage();
+  if(WANTED_SNAPSHOTS.length){ const latest = WANTED_SNAPSHOTS[WANTED_SNAPSHOTS.length-1]; WANTED_DATA = latest.data; }
+  wrPushHistoryToSheet();
+}
+/** हर सेव किए माह की तुलना ठीक पिछले माह से करके एक समेकित (history) सूची बनाता है —
+ * हर रिकॉर्ड में .month/.monthLabel/.status ('नया इस माह'/'पेंडिंग (पूर्व से)'/'निस्तारण इस माह'/'शुरुआती पेंडिंग') जुड़ा होता है। */
+function wrBuildHistoryRecords(){
+  const out = [];
+  for(let i=0;i<WANTED_SNAPSHOTS.length;i++){
+    const cur = WANTED_SNAPSHOTS[i];
+    const prevKeys = i>0 ? new Set(WANTED_SNAPSHOTS[i-1].data.map(wrSnapshotKey)) : null;
+    const curKeys = new Set(cur.data.map(wrSnapshotKey));
+    cur.data.forEach(r=>{
+      const status = (prevKeys===null) ? 'शुरुआती पेंडिंग' : (prevKeys.has(wrSnapshotKey(r)) ? 'पेंडिंग (पूर्व से चली आ रही)' : 'नया (इस माह जुड़ा)');
+      out.push(Object.assign({}, r, {month:cur.month, monthLabel:cur.label, status}));
+    });
+    if(prevKeys){
+      WANTED_SNAPSHOTS[i-1].data.forEach(r=>{
+        if(!curKeys.has(wrSnapshotKey(r))){
+          out.push(Object.assign({}, r, {month:cur.month, monthLabel:cur.label, status:'निस्तारण (इस माह हटा/गिरफ्तार)'}));
+        }
+      });
+    }
+  }
+  return out;
+}
+function wrPopulateSnapMonthYearSelects(){
+  const mSel=document.getElementById('wrSnapMonth'), ySel=document.getElementById('wrSnapYear');
+  if(!mSel || !ySel) return;
+  if(!mSel.options.length) MONTHS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=m; mSel.appendChild(o); });
+  if(!ySel.options.length){ for(let y=CY+1;y>=CY-3;y--){ const o=document.createElement('option'); o.value=y; o.textContent=y; ySel.appendChild(o); } }
+  const {month,year} = defaultEntryMonthYear();
+  mSel.value = month; ySel.value = year;
+}
 const WANTED_FIELD_LABELS = {n:'नाम/पिता/जाति/उम्र/पता', s:'थाना (जहां वांछित)', sho:'SHO व मोबाइल', fir:'FIR/धारा', hs:'गृह थाना', hd:'गृह जिला', hst:'गृह राज्य', ct:'अपराधी का प्रकार', cr:'अपराध का प्रकार', wc:'वारंट CS नं./न्यायालय', rw:'ईनाम', d:'जिला (जहां वांछित)', df:'Data From'};
 
 let wrFilters = {s:new Set(), hs:new Set(), hd:new Set(), hst:new Set(), ct:new Set(), cr:new Set()};
@@ -12242,13 +12812,22 @@ function wrApplyNewRows(rows, statusEl, mode){
   const parsed = wrParseRows(rows);
   if(parsed.error){ statusEl.innerHTML='<span style="color:#b00020">'+parsed.error+'</span>'; return; }
   const newData = parsed.data;
-  WANTED_DATA = (mode==='append') ? WANTED_DATA.concat(newData) : newData;
+  const mSelE=document.getElementById('wrSnapMonth'), ySelE=document.getElementById('wrSnapYear');
+  const mm = mSelE ? parseInt(mSelE.value) : (new Date().getMonth()+1);
+  const yy = ySelE ? parseInt(ySelE.value) : new Date().getFullYear();
+  const monthKey = yy+'-'+pad2(mm);
+  const monthLabel = MONTHS[mm-1]+' '+yy;
+  const existingSnap = WANTED_SNAPSHOTS.find(s=>s.month===monthKey);
+  const finalData = (mode==='append' && existingSnap) ? existingSnap.data.concat(newData) : newData;
+  wrAddSnapshot(monthKey, monthLabel, finalData);
   wrRefreshFiltersAndFilters();
   document.getElementById('wrSearchInput').value='';
   runWantedSearch();
-  const modeNote = mode==='append' ? (newData.length.toLocaleString('en-IN')+' नए रिकॉर्ड मौजूदा सूची में जोड़े गए — अब कुल '+WANTED_DATA.length.toLocaleString('en-IN')+' रिकॉर्ड।') : (newData.length.toLocaleString('en-IN')+' रिकॉर्ड सफलतापूर्वक लोड हुए।');
+  updateWrSnapshotSummary();
+  renderWantedMonthlyPivot();
+  const modeNote = (mode==='append' && existingSnap) ? (newData.length.toLocaleString('en-IN')+' नए रिकॉर्ड '+monthLabel+' में जोड़े गए — अब उस माह में कुल '+finalData.length.toLocaleString('en-IN')+' रिकॉर्ड।') : (finalData.length.toLocaleString('en-IN')+' रिकॉर्ड '+monthLabel+' हेतु सेव हो गए।');
   statusEl.innerHTML = '<span style="color:#1B5E20">✅ '+modeNote+'</span><br>🔄 सीधे Google Sheet में लिखा जा रहा है...';
-  toast('✅ नया डेटा लोड हो गया — '+newData.length+' रिकॉर्ड');
+  toast('✅ '+monthLabel+' का डेटा सेव हो गया — '+finalData.length+' रिकॉर्ड');
   const baseOk = '<span style="color:#1B5E20">✅ '+modeNote+'</span>';
   pushSheetUpdate('wanted', rows, mode).then(res=>{
     if(res.ok){ statusEl.innerHTML = baseOk + '<br>🟢 Google Sheet सफलतापूर्वक अपडेट — अब सभी थाने/डिवाइस को यही डेटा दिखेगा।'; }
@@ -12331,7 +12910,9 @@ function wrLoadNewData(){
 async function ensureWantedRegLoaded(){
   if(wantedRegLoaded) return;
   wantedRegLoaded = true;
+  wrLoadSnapshotsFromStorage();
   await wrLoadLiveIfEmpty();
+  await wrRestoreHistoryFromSheetIfEmpty();
   wrMultiSel.s = buildMultiSelect('wrStationFilter', wrUniqueVals('s'), wrFilters.s, 'थाना', runWantedSearch);
   wrMultiSel.hs = buildMultiSelect('wrHomeStationFilter', wrUniqueVals('hs'), wrFilters.hs, 'गृह थाना', runWantedSearch);
   wrMultiSel.hd = buildMultiSelect('wrHomeDistrictFilter', wrUniqueVals('hd'), wrFilters.hd, 'गृह जिला', runWantedSearch);
@@ -12340,6 +12921,10 @@ async function ensureWantedRegLoaded(){
   wrMultiSel.cr = buildMultiSelect('wrCrimeTypeFilter', wrUniqueVals('cr'), wrFilters.cr, 'अपराध का प्रकार', runWantedSearch);
   document.getElementById('wrTotalCount').textContent = WANTED_DATA.length.toLocaleString('en-IN');
   populateWantedPivotSelectors();
+  populateWantedMonthlyPivotSelectors();
+  wrPopulateSnapMonthYearSelects();
+  updateWrSnapshotSummary();
+  renderWantedMonthlyPivot();
   runWantedSearch();
 }
 
@@ -12493,6 +13078,99 @@ function downloadWantedPivot(){
   });
   lines.push(['कुल', ...p.colSet.map(cv=>p.colTotals[cv]||0), p.grand].map(v=>csvEsc(v)).join(','));
   dlBlob(lines.join('\r\n'), 'text/csv;charset=utf-8', 'wanted-register-pivot.csv');
+}
+
+// ---------- माहवार (नए/निस्तारण/पेंडिंग) पिवट — wrBuildHistoryRecords() पर आधारित ----------
+const WANTED_MONTHLY_PIVOT_DIMS = [
+  {key:'monthLabel', label:'माह'},
+  {key:'status', label:'स्थिति (नया/पेंडिंग/निस्तारण)'},
+  {key:'s', label:'थाना (जहां वांछित)'},
+  {key:'hd', label:'गृह जिला'},
+  {key:'ct', label:'अपराधी का प्रकार'},
+  {key:'cr', label:'अपराध का प्रकार'},
+];
+function populateWantedMonthlyPivotSelectors(){
+  const rowSel = document.getElementById('wrMonthlyPivotRow');
+  const colSel = document.getElementById('wrMonthlyPivotCol');
+  if(!rowSel || !colSel) return;
+  const optsHTML = WANTED_MONTHLY_PIVOT_DIMS.map(d=>'<option value="'+d.key+'">'+d.label+'</option>').join('');
+  rowSel.innerHTML = optsHTML; colSel.innerHTML = optsHTML;
+  rowSel.value = 'monthLabel'; colSel.value = 'status';
+}
+function updateWrSnapshotSummary(){
+  const el = document.getElementById('wrSnapshotSummary');
+  if(!el) return;
+  if(!WANTED_SNAPSHOTS.length){ el.textContent = 'अभी तक कोई माहवार स्नैपशॉट सेव नहीं है — "📥 नया माह डेटा अपडेट करें" मॉडल में माह चुनकर अपलोड करें तो यहां विश्लेषण दिखेगा।'; return; }
+  const list = WANTED_SNAPSHOTS.map(s=>s.label+' ('+s.data.length+')').join(' → ');
+  el.innerHTML = '📌 सेव किए माह: <b>'+list+'</b> — ये तुलना क्रमानुसार (ऊपर से नीचे कालक्रम में) होती है। नया माह जोड़ने के लिए फिर से "नया माह डेटा अपडेट करें" खोलें।';
+}
+let wrMonthlyPivotData = null;
+function renderWantedMonthlyPivot(){
+  const box = document.getElementById('wrMonthlyPivotBox');
+  if(!box) return;
+  const records = wrBuildHistoryRecords();
+  if(!records.length){ box.innerHTML = ''; wrMonthlyPivotData=null; return; }
+  const rowSel = document.getElementById('wrMonthlyPivotRow');
+  const colSel = document.getElementById('wrMonthlyPivotCol');
+  if(!rowSel || !colSel) return;
+  const rowKey = rowSel.value, colKey = colSel.value;
+  const p = buildWantedPivot(records, rowKey, colKey);
+  // महीना व स्थिति — गिनती के हिसाब से नहीं, तार्किक क्रम (कालक्रम/शुरुआती→नया→पेंडिंग→निस्तारण) में दिखाएं
+  const monthOrder = {}; WANTED_SNAPSHOTS.forEach((s,i)=>{ monthOrder[s.label]=i; });
+  const statusOrder = {'शुरुआती पेंडिंग':0,'नया (इस माह जुड़ा)':1,'पेंडिंग (पूर्व से चली आ रही)':2,'निस्तारण (इस माह हटा/गिरफ्तार)':3};
+  if(rowKey==='monthLabel') p.rowSet.sort((a,b)=>(monthOrder[a]??99)-(monthOrder[b]??99));
+  else if(rowKey==='status') p.rowSet.sort((a,b)=>(statusOrder[a]??99)-(statusOrder[b]??99));
+  if(colKey==='monthLabel') p.colSet.sort((a,b)=>(monthOrder[a]??99)-(monthOrder[b]??99));
+  else if(colKey==='status') p.colSet.sort((a,b)=>(statusOrder[a]??99)-(statusOrder[b]??99));
+  wrMonthlyPivotData = p;
+  let h = '<div style="overflow-x:auto;"><table class="data-tbl univ-pivot-tbl"><thead><tr><th class="upv-rowlabel">'+(WANTED_MONTHLY_PIVOT_DIMS.find(d=>d.key===rowKey)?.label||'पंक्ति')+'</th>';
+  p.colSet.forEach(c=>{ h+='<th>'+escHtml(c)+'</th>'; });
+  h += '<th class="upv-total">कुल</th></tr></thead><tbody>';
+  p.rowSet.forEach(rv=>{
+    h += '<tr><td class="upv-rowlabel">'+escHtml(rv)+'</td>';
+    p.colSet.forEach(cv=>{
+      const val = p.grid[rv+'|||'+cv]||0;
+      const color = val ? colorScaleColor(val, 0, Math.max(1,p.grand), false) : null;
+      const styleParts = [];
+      if(color) styleParts.push('background:'+color);
+      if(val>0) styleParts.push('cursor:pointer');
+      const styleAttr = styleParts.length ? ' style="'+styleParts.join(';')+'"' : '';
+      const clickAttr = val>0 ? ' class="upv-clickable" onclick="openWantedMonthlyPivotDrill(\''+rv.replace(/'/g,"\\'")+'\',\''+cv.replace(/'/g,"\\'")+'\')" title="विवरण देखने हेतु क्लिक करें"' : '';
+      h += '<td'+styleAttr+clickAttr+'>'+(val||'-')+'</td>';
+    });
+    h += '<td class="upv-total">'+(p.rowTotals[rv]||0)+'</td></tr>';
+  });
+  h += '<tr><td class="upv-total upv-rowlabel">कुल</td>';
+  p.colSet.forEach(cv=>{ h += '<td class="upv-total">'+(p.colTotals[cv]||0)+'</td>'; });
+  h += '<td class="upv-total">'+p.grand+'</td></tr>';
+  h += '</tbody></table></div>';
+  box.innerHTML = h;
+}
+function openWantedMonthlyPivotDrill(rv, cv){
+  if(!wrMonthlyPivotData) return;
+  const recs = wrMonthlyPivotData.cellRecords[rv+'|||'+cv] || [];
+  if(!recs.length) return;
+  let h = '<div style="overflow-x:auto;"><table class="data-tbl"><thead><tr>'
+    + '<th>माह</th><th>स्थिति</th><th class="desc-th">नाम/पिता/जाति/उम्र/पता</th><th>थाना</th><th class="desc-th">FIR/धारा</th>'
+    + '<th>गृह जिला</th><th>अपराधी प्रकार</th><th>अपराध प्रकार</th></tr></thead><tbody>';
+  recs.forEach((r,i)=>{
+    const band = i%2===1 ? ' style="background:#F7FAFF"' : '';
+    h += `<tr${band}><td>${escHtml(r.monthLabel)}</td><td>${escHtml(r.status)}</td><td class="desc-td" title="${escHtml(r.n)}">${escHtml((r.n||'-').slice(0,90))}</td><td>${escHtml(r.s)||'-'}</td><td class="desc-td" title="${escHtml(r.fir)}">${escHtml((r.fir||'-').slice(0,90))}</td><td>${escHtml(r.hd)||'-'}</td><td>${escHtml(r.ct)||'-'}</td><td>${escHtml(r.cr)||'-'}</td></tr>`;
+  });
+  h += '</tbody></table></div>';
+  showDrillModal(`${recs.length.toLocaleString('en-IN')} व्यक्ति`, `${rv}  ×  ${cv}`, h, recs, 'wanted-monthly');
+}
+function downloadWantedMonthlyPivot(){
+  if(!wrMonthlyPivotData || !wrMonthlyPivotData.rowSet.length){ toast('पहले कम से कम एक माह का डेटा सेव करें'); return; }
+  const p = wrMonthlyPivotData;
+  const header = ['पंक्ति', ...p.colSet, 'कुल'];
+  const lines = [header.map(csvEsc).join(',')];
+  p.rowSet.forEach(rv=>{
+    const row = [rv, ...p.colSet.map(cv=>p.grid[rv+'|||'+cv]||0), p.rowTotals[rv]||0];
+    lines.push(row.map(v=>csvEsc(v)).join(','));
+  });
+  lines.push(['कुल', ...p.colSet.map(cv=>p.colTotals[cv]||0), p.grand].map(v=>csvEsc(v)).join(','));
+  dlBlob(lines.join('\r\n'), 'text/csv;charset=utf-8', 'wanted-register-monthly-pivot.csv');
 }
 
 // ---------- पिवट टेबल — MS Excel जैसा ड्रिल-डाउन (सकारात्मक मान पर क्लिक → उस संख्या की सारणी) ----------

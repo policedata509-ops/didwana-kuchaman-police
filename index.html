@@ -2609,6 +2609,24 @@ footer{background:#fff;color:var(--soft);text-align:center;padding:22px;font-siz
       <div id="uploadHistoryBox" style="margin-top:10px;"></div>
     </div>
 
+    <div class="pcard" style="--ca:#8A1F1F">
+      <div class="pcard-head"><div class="pcard-icon">🔒</div><span class="pcard-badge">माह लॉक</span></div>
+      <div class="pcard-title">सूचना-प्रारूप — माह लॉक/अनलॉक करें</div>
+      <div class="pcard-desc">किसी प्रारूप (अपराध/सम्मन-वारंट/मालखाना) के किसी माह को लॉक करें — उच्च कार्यालय को सूचना भेजने के बाद थाने उस माह का डेटा बदल न सकें। लॉक सभी थानों व डिवाइस पर एक जैसा लागू होता है (Google Sheet के "LockedPeriods" टैब में सेव)।</div>
+      <div class="ctx-grid" style="margin-top:8px">
+        <div><label>प्रारूप</label><select id="lockFormatSelect"></select></div>
+        <div><label>वर्ष</label><select id="lockYearSelect"></select></div>
+        <div><label>माह</label><select id="lockMonthSelect"></select></div>
+      </div>
+      <div class="pcard-actions">
+        <button class="btn-fill sm" style="background:linear-gradient(135deg,#8A1F1F,#5C1414)" onclick="adminLockSelectedPeriod(true)">🔒 लॉक करें</button>
+        <button class="btn-ghost sm" onclick="adminLockSelectedPeriod(false)">🔓 अनलॉक करें</button>
+        <button class="btn-ghost sm" onclick="refreshLockedPeriodsUI()">🔄 सूची ताज़ा करें</button>
+      </div>
+      <div id="lockedPeriodsStatus" style="font-size:12.5px;margin-top:8px;color:var(--soft)"></div>
+      <div id="lockedPeriodsList" style="margin-top:10px"></div>
+    </div>
+
     <div class="pcard" style="--ca:#B71C1C">
       <div class="pcard-head"><div class="pcard-icon">🔐</div><span class="pcard-badge">सुरक्षा</span></div>
       <div class="pcard-title">पासवर्ड व सुरक्षा कोड बदलें</div>
@@ -2984,17 +3002,20 @@ function reply(obj) {
       <h2 id="entry-title">डेटा भरें</h2>
       <p id="entry-subtitle">सांख्यिकी शाखा सूचना पोर्टल</p>
     </div>
-    <button class="btn-fill sm" style="background:var(--gold);color:var(--navy2)" onclick="saveEntry()">💾 सेव करें</button>
+    <button class="btn-fill sm" id="entry-save-btn-top" style="background:var(--gold);color:var(--navy2)" onclick="saveEntry()">💾 सेव करें</button>
   </div>
   <div class="entry-strip"><span></span><span></span><span></span></div>
   <div class="entry-body">
     <div class="entry-wrap">
       <div id="entry-meta" class="entry-meta"></div>
+      <div id="entry-lock-banner" style="display:none;background:#FDEDED;border:1.5px solid #E5484D;border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#8A1F1F;font-weight:600">
+        🔒 यह माह एडमिन द्वारा लॉक कर दिया गया है — उच्च कार्यालय को सूचना भेजी जा चुकी है, इसलिए अब इसमें बदलाव नहीं किया जा सकता। बदलाव जरूरी हो तो एडमिन से अनलॉक करवाएं (Settings)।
+      </div>
       <div id="entry-help" class="help-panel" style="display:none"></div>
       <div id="entry-content"></div>
       <div class="save-bar">
         <p><b>डेटा सेव करने के बाद:</b> "💾 सेव करें" दबाएँ — डेटा इस माह के लिए सुरक्षित हो जाएगा। फिर <b>"📥 डाउनलोड"</b> से Excel या PDF में डाउनलोड करें।</p>
-        <button class="btn-fill" onclick="saveEntry()">💾 सेव करें</button>
+        <button class="btn-fill" id="entry-save-btn" onclick="saveEntry()">💾 सेव करें</button>
         <button class="btn-dl" id="entry-dl-btn" onclick="downloadCurrentEntry()">📥 डाउनलोड</button>
         <button class="btn-ghost sm" id="cp-pull-btn" style="display:none" onclick="pullEntryFromServer()">🔄 सर्वर से ताज़ा (पुराना) डेटा लाएँ</button>
         <button class="btn-ghost sm" id="entry-share-link-btn" style="display:none" onclick="shareDirectEntryLink()">🔗 इस प्रारूप की सीधी लिंक भेजें (पासवर्ड-मुक्त)</button>
@@ -3114,6 +3135,112 @@ function defaultEntryMonthYear(){
 
 // Current context (which entry is open)
 let entryCtx = null; // {branch, type, thana, year, month}
+
+// ============================================================
+// माह-लॉक — एडमिन किसी प्रारूप के किसी माह को लॉक कर सकता है ताकि उच्च कार्यालय को
+// सूचना भेजने के बाद थाने उस माह का डेटा बदल न सकें। Google Sheet के "LockedPeriods"
+// टैब में सेव होता है ताकि सभी डिवाइस/थानों पर एक जैसा लागू हो (सिर्फ इसी ब्राउज़र में नहीं)।
+// ============================================================
+let LOCKED_PERIODS = {}; // key: branch|type|year|month → {lockedAt}
+function lockKey(branch,type,year,month){ return branch+'|'+type+'|'+year+'|'+month; }
+function isPeriodLocked(branch,type,year,month){ return !!LOCKED_PERIODS[lockKey(branch,type,year,month)]; }
+async function loadLockedPeriods(){
+  try{
+    const aoa = await fetchSheetAOA(SHEET_IDS.lockedPeriods, SHEET_TABS.lockedPeriods);
+    const next = {};
+    if(aoa && aoa.length>1){
+      for(let i=1;i<aoa.length;i++){
+        const row = aoa[i]; if(!row || !row[0]) continue;
+        next[lockKey(row[0],row[1],row[2],row[3])] = { lockedAt: row[4]||'' };
+      }
+    }
+    LOCKED_PERIODS = next;
+  }catch(e){ /* चुपचाप — Sheet न मिले तो कोई माह लॉक नहीं माना जाता */ }
+}
+function pushLockedPeriodsToSheet(){
+  if(!isSheetWriteConfigured()) return;
+  const header = ['Branch','Type','Year','Month','LockedAt'];
+  const aoa = [header];
+  Object.keys(LOCKED_PERIODS).forEach(k=>{
+    const [branch,type,year,month] = k.split('|');
+    aoa.push([branch,type,year,month,LOCKED_PERIODS[k].lockedAt||'']);
+  });
+  pushSheetUpdate('lockedPeriods', aoa, 'replace').catch(()=>{});
+}
+async function toggleLockPeriod(branch,type,year,month,lock){
+  const k = lockKey(branch,type,year,month);
+  if(lock) LOCKED_PERIODS[k] = { lockedAt: new Date().toLocaleString('hi-IN') };
+  else delete LOCKED_PERIODS[k];
+  pushLockedPeriodsToSheet();
+}
+/** एंट्री फॉर्म खुलने के बाद, यदि वह माह लॉक हो, तो सभी इनपुट/टेक्स्टएरिया/सेव-बटन निष्क्रिय
+ * कर देता है और ऊपर एक साफ़ चेतावनी दिखाता है — ताकि लॉक के बाद डेटा बदला न जा सके। */
+function applyLockUIIfNeeded(){
+  if(!entryCtx) return;
+  const locked = isPeriodLocked(entryCtx.branch, entryCtx.type, entryCtx.year, entryCtx.month);
+  const banner = document.getElementById('entry-lock-banner');
+  if(banner) banner.style.display = locked ? '' : 'none';
+  const content = document.getElementById('entry-content');
+  if(content){
+    content.querySelectorAll('input, textarea, select, button').forEach(el=>{
+      if(el.closest('#entry-lock-banner')) return;
+      el.disabled = locked;
+    });
+  }
+  const saveBtn = document.getElementById('entry-save-btn');
+  if(saveBtn) saveBtn.disabled = locked;
+  const saveBtnTop = document.getElementById('entry-save-btn-top');
+  if(saveBtnTop) saveBtnTop.disabled = locked;
+}
+
+// ---------- Settings पेज — माह-लॉक एडमिन UI ----------
+function mcrLockFormatList(){
+  const list = [];
+  Object.keys(APRADH_TYPES).forEach(k=>list.push({branch:'apradh', type:k, title:'अपराध — '+APRADH_TYPES[k].title}));
+  Object.keys(SUMMON_SCHEMAS).forEach(k=>list.push({branch:'summon', type:k, title:'सम्मन-वारंट — '+SUMMON_SCHEMAS[k].title}));
+  Object.keys(MALKHANA_FORMATS).forEach(k=>list.push({branch:'malkhana', type:k, title:'मालखाना — '+MALKHANA_FORMATS[k].title}));
+  return list;
+}
+function populateLockFormatSelect(){
+  const sel = document.getElementById('lockFormatSelect');
+  if(!sel || sel.options.length) return;
+  mcrLockFormatList().forEach(f=>{ const o=document.createElement('option'); o.value=f.branch+'|'+f.type; o.textContent=f.title; sel.appendChild(o); });
+}
+function populateLockYearMonthSelects(){
+  const ySel = document.getElementById('lockYearSelect'), mSel = document.getElementById('lockMonthSelect');
+  if(ySel && !ySel.options.length){ for(let y=CY+1;y>=CY-3;y--){ const o=document.createElement('option'); o.value=y; o.textContent=y; ySel.appendChild(o); } }
+  if(mSel && !mSel.options.length){ MONTHS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=m; mSel.appendChild(o); }); }
+  const {month,year} = defaultEntryMonthYear();
+  if(ySel) ySel.value = year;
+  if(mSel) mSel.value = month;
+}
+async function adminLockSelectedPeriod(lock){
+  const fSel = document.getElementById('lockFormatSelect'), ySel = document.getElementById('lockYearSelect'), mSel = document.getElementById('lockMonthSelect');
+  if(!fSel || !fSel.value){ toast('पहले प्रारूप चुनें'); return; }
+  const [branch, type] = fSel.value.split('|');
+  const year = ySel.value, month = mSel.value;
+  const statusEl = document.getElementById('lockedPeriodsStatus');
+  if(statusEl) statusEl.textContent = '⏳ अपडेट हो रहा है...';
+  await toggleLockPeriod(branch, type, year, month, lock);
+  if(statusEl) statusEl.innerHTML = lock ? '<span style="color:#8A1F1F">🔒 लॉक कर दिया गया — अब इस माह में थाने बदलाव नहीं कर सकेंगे।</span>' : '<span style="color:#1B5E20">🔓 अनलॉक कर दिया गया।</span>';
+  toast(lock ? '🔒 माह लॉक हो गया' : '🔓 माह अनलॉक हो गया');
+  refreshLockedPeriodsUI();
+}
+function refreshLockedPeriodsUI(){
+  const box = document.getElementById('lockedPeriodsList');
+  if(!box) return;
+  const keys = Object.keys(LOCKED_PERIODS);
+  if(!keys.length){ box.innerHTML = '<div class="note">अभी कोई माह लॉक नहीं है।</div>'; return; }
+  const fmtMap = {}; mcrLockFormatList().forEach(f=>{ fmtMap[f.branch+'|'+f.type] = f.title; });
+  let h = '<table class="data-tbl" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="border:1px solid #ccc;padding:5px">प्रारूप</th><th style="border:1px solid #ccc;padding:5px">माह/वर्ष</th><th style="border:1px solid #ccc;padding:5px">लॉक समय</th><th style="border:1px solid #ccc;padding:5px">कार्रवाई</th></tr></thead><tbody>';
+  keys.forEach(k=>{
+    const [branch,type,year,month] = k.split('|');
+    const title = fmtMap[branch+'|'+type] || (branch+' — '+type);
+    h += `<tr><td style="border:1px solid #ccc;padding:5px">${title}</td><td style="border:1px solid #ccc;padding:5px;text-align:center">${MONTHS[month-1]} ${year}</td><td style="border:1px solid #ccc;padding:5px;text-align:center">${LOCKED_PERIODS[k].lockedAt||'-'}</td><td style="border:1px solid #ccc;padding:5px;text-align:center"><button class="btn-ghost sm" onclick="toggleLockPeriod('${branch}','${type}','${year}','${month}',false).then(refreshLockedPeriodsUI)">🔓 अनलॉक करें</button></td></tr>`;
+  });
+  h += '</tbody></table>';
+  box.innerHTML = h;
+}
 let dlCtx = null;
 
 // ============================================================
@@ -3779,6 +3906,7 @@ function go(id){
   if(id==='myPending' && typeof ensureMyPendingLoaded==='function') ensureMyPendingLoaded();
   if(id==='wantedReg' && typeof ensureWantedRegLoaded==='function') ensureWantedRegLoaded();
   if(id==='mcrBook' && typeof mcrInitSelects==='function'){ mcrInitSelects(); if(typeof renderMcrBook==='function') renderMcrBook(); }
+  if(id==='settings' && typeof populateLockFormatSelect==='function'){ populateLockFormatSelect(); populateLockYearMonthSelects(); refreshLockedPeriodsUI(); }
 }
 
 // ============================================================
@@ -3935,6 +4063,7 @@ function openApradhEntry(type){
   if(pullBtnAp) pullBtnAp.style.display = isSyncConfigured() ? 'inline-block' : 'none';
   const shareBtnAp=document.getElementById('entry-share-link-btn');
   if(shareBtnAp) shareBtnAp.style.display = 'inline-block';
+  applyLockUIIfNeeded();
   document.getElementById('entry-overlay').classList.add('on');
   document.body.style.overflow='hidden';
 }
@@ -4373,6 +4502,7 @@ function openSummonEntry(praroop){
   if(pullBtnSv) pullBtnSv.style.display = isSyncConfigured() ? 'inline-block' : 'none';
   const shareBtnSv=document.getElementById('entry-share-link-btn');
   if(shareBtnSv) shareBtnSv.style.display = 'inline-block';
+  applyLockUIIfNeeded();
   document.getElementById('entry-overlay').classList.add('on');
   document.body.style.overflow='hidden';
 }
@@ -4719,6 +4849,7 @@ function openMalkhanaEntry(fmtKey){
   if(pullBtnMk) pullBtnMk.style.display = isSyncConfigured() ? 'inline-block' : 'none';
   const shareBtnMk=document.getElementById('entry-share-link-btn');
   if(shareBtnMk) shareBtnMk.style.display = 'inline-block';
+  applyLockUIIfNeeded();
   document.getElementById('entry-overlay').classList.add('on');
   document.body.style.overflow='hidden';
 }
@@ -4924,6 +5055,10 @@ function goToNextFormat(){
 
 function saveEntry(){
   if(!entryCtx) return;
+  if(isPeriodLocked(entryCtx.branch, entryCtx.type, entryCtx.year, entryCtx.month)){
+    toast('🔒 यह माह लॉक है — सेव नहीं किया जा सकता');
+    return;
+  }
   const {branch,type,thana,year,month,monthName,_key} = entryCtx;
   let payload;
 
@@ -5832,6 +5967,86 @@ function mcrStationPendingHTML(rows){
   return h;
 }
 
+/** थानावार तुलनात्मक — वृत्त-समूहित, 2 वर्ष + परिवर्तन (राज्य MCR Book की "तालिका क" शैली — जिला/रेंज की
+ * जगह यहां थाना/वृत्त प्रयोग होते हैं, प्रारूप वही: हर श्रेणी के 4 उप-स्तम्भ वर्षA/वर्षB/+-/+-%) */
+function mcrCircleComparativeHTML(title, field, cats, yearA, yearB, cutoffMonth){
+  const countFor = (ps, cat, y) => dbRecords.filter(r=>r.ps===ps && r[field]===cat && r.year===y && (!cutoffMonth || r.month<=cutoffMonth)).length;
+  const circles = {};
+  ALL_PS_EN.forEach(ps=>{ const c=dispCircleOf(ps)||'अन्य'; (circles[c]=circles[c]||[]).push(ps); });
+  const circleOrder = DISP_CIRCLE_ORDER.filter(c=>circles[c]);
+  const td=(v,extra)=>`<td style="border:1px solid #999;padding:3px;text-align:center${extra||''}">${v}</td>`;
+  const rowCells = (a,b)=>{ const diff=b-a, pct=a?(diff/a*100):(b?100:0); return td(a)+td(b)+td((diff>=0?'+':'')+diff)+td((pct>=0?'+':'')+pct.toFixed(1)); };
+  let rowsHtml = '';
+  const grand = {}; cats.forEach(c=>grand[c]={a:0,b:0});
+  circleOrder.forEach(circle=>{
+    const stations = circles[circle].slice().sort((a,b)=>(ENG2HI_PS[a]||a).localeCompare(ENG2HI_PS[b]||b));
+    const ctot = {}; cats.forEach(c=>ctot[c]={a:0,b:0});
+    stations.forEach(ps=>{
+      rowsHtml += `<tr><td style="border:1px solid #999;padding:3px">${ENG2HI_PS[ps]||ps}</td>`;
+      cats.forEach(cat=>{
+        const a=countFor(ps,cat,yearA), b=countFor(ps,cat,yearB);
+        ctot[cat].a+=a; ctot[cat].b+=b; grand[cat].a+=a; grand[cat].b+=b;
+        rowsHtml += rowCells(a,b);
+      });
+      rowsHtml += `</tr>`;
+    });
+    rowsHtml += `<tr style="font-weight:700;background:#F1F3F8"><td style="border:1px solid #999;padding:3px">${circle} वृत्त</td>`;
+    cats.forEach(cat=>{ rowsHtml += rowCells(ctot[cat].a, ctot[cat].b); });
+    rowsHtml += `</tr>`;
+  });
+  rowsHtml += `<tr style="font-weight:800;background:#E4E9F2"><td style="border:1px solid #999;padding:3px">जिला योग</td>`;
+  cats.forEach(cat=>{ rowsHtml += rowCells(grand[cat].a, grand[cat].b); });
+  rowsHtml += `</tr>`;
+
+  let h = `<h4 style="font-size:12.5px;margin:12px 0 6px;color:var(--navy)">${title}</h4>`;
+  h += `<div class="note" style="margin-bottom:6px">वर्ष ${yearA} एवं ${yearB}${cutoffMonth?(' माह '+MONTHS[cutoffMonth-1]+' तक'):''} — प्रारूप: राज्य MCR Book की "तालिका क" जैसा (जिला/रेंज → थाना/वृत्त)</div>`;
+  h += `<div style="overflow-x:auto"><table class="data-tbl" style="border-collapse:collapse;font-size:9.5px"><thead><tr>
+    <th rowspan="2" style="border:1px solid #999;padding:3px;background:var(--navy);color:#fff">थाना</th>
+    ${cats.map(cat=>`<th colspan="4" style="border:1px solid #999;padding:3px;background:var(--navy);color:#fff">${mcrHi(cat)}</th>`).join('')}
+    </tr><tr>${cats.map(()=>`<th style="border:1px solid #999;padding:2px;background:#3B4A6B;color:#fff">${yearA}</th><th style="border:1px solid #999;padding:2px;background:#3B4A6B;color:#fff">${yearB}</th><th style="border:1px solid #999;padding:2px;background:#3B4A6B;color:#fff">+/-</th><th style="border:1px solid #999;padding:2px;background:#3B4A6B;color:#fff">+/-%</th>`).join('')}</tr></thead>
+    <tbody>${rowsHtml}</tbody></table></div>`;
+  return h;
+}
+/** थानावार निस्तारण — वृत्त-समूहित (राज्य MCR Book की "तालिका ख" शैली — दर्ज/F.R/F.R%/F.R-अन्य/पेंडिंग/चालान/चालानी%) */
+function mcrCircleDisposalHTML(title, field, cats, year, cutoffMonth){
+  const combinedCats = cats; // पूरे हेड की सभी श्रेणियां मिलाकर, थाना अनुसार
+  const statsFor = (ps) => {
+    const base = dbRecords.filter(r=>r.ps===ps && combinedCats.includes(r[field]) && r.year===year && (!cutoffMonth || r.month<=cutoffMonth));
+    const total = base.length;
+    const fr = base.filter(r=>r.disposal==='F.R.').length;
+    const cs = base.filter(r=>r.disposal==='Chargesheet').length;
+    const pending = total-fr-cs;
+    return { total, fr, frPct: total?(fr/total*100):0, cs, csPct: total?(cs/total*100):0, pending };
+  };
+  const circles = {};
+  ALL_PS_EN.forEach(ps=>{ const c=dispCircleOf(ps)||'अन्य'; (circles[c]=circles[c]||[]).push(ps); });
+  const circleOrder = DISP_CIRCLE_ORDER.filter(c=>circles[c]);
+  const td=(v)=>`<td style="border:1px solid #999;padding:3px;text-align:center">${v}</td>`;
+  const rowCells = (s)=> td(s.total)+td(s.fr)+td(s.frPct.toFixed(1))+td(s.pending)+td(s.cs)+td(s.csPct.toFixed(1));
+  let rowsHtml=''; const grand={total:0,fr:0,cs:0,pending:0};
+  circleOrder.forEach(circle=>{
+    const stations = circles[circle].slice().sort((a,b)=>(ENG2HI_PS[a]||a).localeCompare(ENG2HI_PS[b]||b));
+    const ctot={total:0,fr:0,cs:0,pending:0};
+    stations.forEach(ps=>{
+      const s = statsFor(ps);
+      ctot.total+=s.total; ctot.fr+=s.fr; ctot.cs+=s.cs; ctot.pending+=s.pending;
+      grand.total+=s.total; grand.fr+=s.fr; grand.cs+=s.cs; grand.pending+=s.pending;
+      rowsHtml += `<tr><td style="border:1px solid #999;padding:3px">${ENG2HI_PS[ps]||ps}</td>${rowCells(s)}</tr>`;
+    });
+    ctot.frPct = ctot.total?(ctot.fr/ctot.total*100):0; ctot.csPct = ctot.total?(ctot.cs/ctot.total*100):0;
+    rowsHtml += `<tr style="font-weight:700;background:#F1F3F8"><td style="border:1px solid #999;padding:3px">${circle} वृत्त</td>${rowCells(ctot)}</tr>`;
+  });
+  grand.frPct = grand.total?(grand.fr/grand.total*100):0; grand.csPct = grand.total?(grand.cs/grand.total*100):0;
+  rowsHtml += `<tr style="font-weight:800;background:#E4E9F2"><td style="border:1px solid #999;padding:3px">जिला योग</td>${rowCells(grand)}</tr>`;
+
+  let h = `<h4 style="font-size:12.5px;margin:12px 0 6px;color:var(--navy)">${title}</h4>`;
+  h += `<div class="note" style="margin-bottom:6px">वर्ष ${year}${cutoffMonth?(' माह '+MONTHS[cutoffMonth-1]+' तक'):''} — प्रारूप: राज्य MCR Book की "तालिका ख" जैसा (जिला/रेंज → थाना/वृत्त); F.R के दो उप-प्रकार यहां एक साथ हैं (पोर्टल के अपने डेटा में उपलब्ध सीमा तक)</div>`;
+  h += `<div style="overflow-x:auto"><table class="data-tbl" style="border-collapse:collapse;font-size:11px"><thead><tr>
+    <th style="border:1px solid #999;padding:3px;background:var(--navy);color:#fff">थाना</th><th style="border:1px solid #999;padding:3px;background:var(--navy);color:#fff">दर्ज</th><th style="border:1px solid #999;padding:3px;background:var(--navy);color:#fff">F.R</th><th style="border:1px solid #999;padding:3px;background:var(--navy);color:#fff">F.R %</th><th style="border:1px solid #999;padding:3px;background:var(--navy);color:#fff">पेंडिंग</th><th style="border:1px solid #999;padding:3px;background:var(--navy);color:#fff">चालान</th><th style="border:1px solid #999;padding:3px;background:var(--navy);color:#fff">चालानी %</th>
+    </tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+  return h;
+}
+
 let MCR_LAST_YEARS = null;
 /** माहवार (month-wise) तुलनात्मक तालिका — चयनित वर्ष के लिए, चालू वर्ष हो तो अभी तक के माह तक सीमित */
 function mcrBuildMonthTable(field, cats, year){
@@ -5952,12 +6167,13 @@ function renderMcrBook(){
   h += mcrHeadSection(6, 'बलात्कार (बालिग)', 'rape', RAPE_CATS, years, curY);
 
   // थानावार तालिकाएं (तालिका क-छ) — चयनित (चालू) वर्ष के लिए, हर तालिका अपने book-page पर
-  h += mcrBookSection('तालिका क — थानावार भा.द.सं./बी.एन.एस. तुलनात्मक', mcrStationTableHTML('', mcrStationTable('ipc', IPC_CATS, curY), IPC_CATS), 'वर्ष '+curY);
-  h += mcrBookSection('तालिका ख — थानावार भा.द.सं./बी.एन.एस. निस्तारण', mcrStationDisposalHTML('', mcrStationDisposalTable('ipc', IPC_CATS, curY)), 'वर्ष '+curY);
-  h += mcrBookSection('तालिका ग (1) — थानावार महिला अत्याचार तुलनात्मक', mcrStationTableHTML('', mcrStationTable('wa', WA_CATS, curY), WA_CATS), 'वर्ष '+curY);
-  h += mcrBookSection('तालिका ग (2) — थानावार SC/ST अत्याचार तुलनात्मक', mcrStationTableHTML('', mcrStationTable('scst', SCST_CATS, curY), SCST_CATS), 'वर्ष '+curY);
-  h += mcrBookSection('तालिका घ (1) — थानावार स्थानीय व विशेष अधिनियम (SLL)', mcrStationTableHTML('', mcrStationTable('sll', SLL_CATS, curY), SLL_CATS), 'वर्ष '+curY);
-  h += mcrBookSection('तालिका घ (2) — थानावार पोक्सो एक्ट', mcrStationTableHTML('', mcrStationTable('pocso', POCSO_CATS, curY), POCSO_CATS), 'वर्ष '+curY);
+  const cutoffM = (curY===new Date().getFullYear()) ? (new Date().getMonth()+1) : 12;
+  h += mcrBookSection('तालिका क — थानावार भा.द.सं./बी.एन.एस. तुलनात्मक', mcrCircleComparativeHTML('', 'ipc', IPC_CATS, curY-1, curY, cutoffM), 'वर्ष '+(curY-1)+'-'+curY);
+  h += mcrBookSection('तालिका ख — थानावार भा.द.सं./बी.एन.एस. निस्तारण', mcrCircleDisposalHTML('', 'ipc', IPC_CATS, curY, cutoffM), 'वर्ष '+curY);
+  h += mcrBookSection('तालिका ग (1) — थानावार महिला अत्याचार तुलनात्मक', mcrCircleComparativeHTML('', 'wa', WA_CATS, curY-1, curY, cutoffM), 'वर्ष '+(curY-1)+'-'+curY);
+  h += mcrBookSection('तालिका ग (2) — थानावार SC/ST अत्याचार तुलनात्मक', mcrCircleComparativeHTML('', 'scst', SCST_CATS, curY-1, curY, cutoffM), 'वर्ष '+(curY-1)+'-'+curY);
+  h += mcrBookSection('तालिका घ (1) — थानावार स्थानीय व विशेष अधिनियम (SLL) तुलनात्मक', mcrCircleComparativeHTML('', 'sll', SLL_CATS, curY-1, curY, cutoffM), 'वर्ष '+(curY-1)+'-'+curY);
+  h += mcrBookSection('तालिका घ (2) — थानावार पोक्सो एक्ट तुलनात्मक', mcrCircleComparativeHTML('', 'pocso', POCSO_CATS, curY-1, curY, cutoffM), 'वर्ष '+(curY-1)+'-'+curY);
 
   // तालिका छ — पूरी तरह पेंडेंसी पेज की उसी पद्धति (aggregatePendency/buildPendencyRows) से
   let pendBody;
@@ -10081,10 +10297,11 @@ const SHEET_IDS = {
   fdc: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng',
   sas: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng',
   wanted: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng',
-  wantedHistory: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng'
+  wantedHistory: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng',
+  lockedPeriods: '17pWsnQ7rC6FQgzJ5GqStBkOcMdOl7K_kIbEHvkBMjng'
 };
 // चारों एक ही Google Sheet में अलग-अलग टैब (tabs) पर हैं — टैब का नाम मायने रखता है
-const SHEET_TABS = { gen:'Generic', fdc:'FDC', sas:'SAS', wanted:'Wanted', wantedHistory:'WantedHistory' };
+const SHEET_TABS = { gen:'Generic', fdc:'FDC', sas:'SAS', wanted:'Wanted', wantedHistory:'WantedHistory', lockedPeriods:'LockedPeriods' };
 function gvizUrl(id, tabName){ return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}&_cb=${Date.now()}`; }
 function exportUrl(id, tabName){ return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}&_cb2=${Date.now()}_${Math.random()}`; }
 
@@ -10302,6 +10519,7 @@ if(typeof window!=='undefined'){ loadOfflineCache(); }
 async function loadLiveData(){
   LIVE_SYNC_STATE = {status:'loading', time:null, errors:{}};
   updateSyncBanner();
+  loadLockedPeriods(); // माह-लॉक सूची — स्वतंत्र रूप से लोड होती है, मुख्य सिंक स्थिति को प्रभावित नहीं करती
   const results = await Promise.allSettled([
     fetchSheetAOA(SHEET_IDS.gen, SHEET_TABS.gen).then(parseLiveGeneric),
     fetchSheetAOA(SHEET_IDS.fdc, SHEET_TABS.fdc).then(parseLiveFDC),
@@ -10629,27 +10847,19 @@ function resolvePrintVarsHTML(html){
   return String(html).replace(/var\(\s*--([a-zA-Z0-9-]+)\s*\)/g, (m,name)=> PRINT_HEX_VARS[name] || '#333333');
 }
 
+/** असली टेक्स्ट-आधारित PDF (सर्च व ज़ूम दोनों सही काम करें) — पुराना html2canvas+jsPDF तरीका
+ * रेखाचित्र (इमेज) की तरह PDF बनाता था, जो ज़ूम करने पर धुंधला/फटा दिखता व टेक्स्ट-सर्च नहीं होता था
+ * (क्योंकि उसमें असली टेक्स्ट नहीं, सिर्फ तस्वीर होती थी)। अब ब्राउज़र की अपनी "प्रिंट → PDF में सेव करें"
+ * सुविधा इस्तेमाल होती है — इससे बना PDF हमेशा वेक्टर टेक्स्ट वाला, साफ़ व सर्च-योग्य होता है। */
 async function exportOnePagePortraitPDF(containerId, title, filename){
   const container = document.getElementById(containerId);
   if(!container){ toast('निर्यात हेतु डेटा उपलब्ध नहीं'); return; }
-  if(!window.jspdf || !window.jspdf.jsPDF){ toast('PDF लाइब्रेरी लोड नहीं हो पाई'); return; }
-  if(typeof html2canvas==='undefined'){ toast('इमेज लाइब्रेरी लोड नहीं हो पाई — इंटरनेट कनेक्शन जांचें'); return; }
 
-  // यदि इस पेज पर अलग "IO रैंकिंग" सेक्शन है (60/90 दिवस पेज), तो उसकी तालिकाएँ
-  // मुख्य जिला/सर्किल/थाना तालिका से अलग करके PDF के अगले पेज पर बनाई जाती हैं —
-  // ताकि दोनों एक ही पेज में सिकुड़कर बहुत छोटे न दिखें (पढ़ने में दिक्कत न हो)
   const ioRankEl = document.getElementById(containerId.replace('disp','d')+'IORank');
   const ioTables = ioRankEl ? Array.from(ioRankEl.querySelectorAll('table')) : [];
   const allTables = Array.from(container.querySelectorAll('table'));
   const mainTables = allTables.filter(t=>!ioTables.includes(t));
   if(!allTables.length){ toast('कोई सारणी उपलब्ध नहीं — पहले परिणाम लोड करें'); return; }
-
-  toast('⏳ PDF तैयार हो रहा है...');
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({orientation:'portrait', unit:'pt', format:'a4'});
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const marginX = 16, marginY = 16;
 
   let filtersLine = '';
   container.querySelectorAll('.ctx-bar select').forEach(sel=>{
@@ -10659,79 +10869,34 @@ async function exportOnePagePortraitPDF(containerId, title, filename){
   });
   const dtLine = 'जनरेट दिनांक: ' + new Date().toLocaleString('hi-IN');
 
-  // एक तालिका-समूह को पेज की पूरी चौड़ाई में (बिना सिकोड़े/खींचे) रेंडर करता है — यदि सामग्री एक
-  // पेज से ऊँची हो तो आवश्यकतानुसार अतिरिक्त पेज अपने-आप जुड़ जाते हैं
-  async function renderTablesToCurrentPage(tables, pageTitle, stackVertically){
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'position:fixed;left:-99999px;top:0;width:840px;background:#FFFFFF;padding:12px;font-family:Hind,Arial,sans-serif;color:#101828;';
-    let bodyHtml = `<div style="font-size:18px;font-weight:700;color:#1E2A45;margin-bottom:5px;">${pageTitle}</div>`;
-    if(filtersLine) bodyHtml += `<div style="font-size:10.5px;color:#64748B;margin-bottom:3px;">${filtersLine}</div>`;
-    bodyHtml += `<div style="font-size:9.5px;color:#64748B;margin-bottom:8px;">${dtLine}</div>`;
-    if(stackVertically){
-      tables.forEach(t=>{ bodyHtml += `<div style="margin-bottom:14px;">${t.outerHTML}</div>`; });
-    } else {
-      tables.forEach(t=>{ bodyHtml += t.outerHTML; });
-    }
-    wrap.innerHTML = resolvePrintVarsHTML(bodyHtml);
-
-    wrap.querySelectorAll('table').forEach(t=>{
-      t.style.width='100%'; t.style.maxWidth='100%'; t.style.tableLayout='auto'; t.style.borderCollapse='collapse'; t.style.marginBottom='10px'; t.style.fontSize='10.5px';
-    });
-    wrap.querySelectorAll('th').forEach(c=>{
-      c.style.border='1px solid #C7CDD9'; c.style.padding='3px 3px'; c.style.background='#1E2A45'; c.style.color='#FFFFFF'; c.style.fontSize='9.5px'; c.style.whiteSpace='normal'; c.style.wordBreak='break-word'; c.style.lineHeight='1.3';
-    });
-    wrap.querySelectorAll('td').forEach(c=>{
-      // white-space:nowrap ज़रूरी है — वरना "333.33%" जैसे मान संकरे कॉलम में दो लाइनों में टूटकर
-      // ऊपर-नीचे ओवरलैप कर जाते हैं (जैसे % चिह्न अंकों पर चढ़ जाना)
-      c.style.border='1px solid #C7CDD9'; c.style.padding='2.5px 3px'; c.style.whiteSpace='nowrap'; c.style.lineHeight='1.3';
-    });
-
-    document.body.appendChild(wrap);
-    try{
-      // फॉन्ट (Hind/Devanagari) पूरी तरह लोड होने का इंतज़ार — वरना html2canvas बीच में ही स्नैपशॉट
-      // ले लेता है जिससे अक्षर/चिह्न आपस में ओवरलैप दिखते हैं (गलत ग्लिफ़ चौड़ाई के कारण)
-      if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
-      await new Promise(res=>requestAnimationFrame(()=>requestAnimationFrame(res)));
-
-      const canvas = await html2canvas(wrap, {scale:2, backgroundColor:'#ffffff'});
-      const availW = pageW - marginX*2;
-      const availH = pageH - marginY*2;
-      // चौड़ाई के अनुसार स्केल तय करें — इसे ऊँचाई के हिसाब से कभी सिकोड़ें/खींचें नहीं,
-      // वरना ज़्यादा थाने/पंक्तियाँ होने पर टेक्स्ट बहुत छोटा या विकृत होकर पढ़ने लायक नहीं रहता।
-      // इसके बजाय सामग्री जितने भी पेज घेरे, उतने पेजों में बाँट दें (जरूरत पड़ने पर addPage)।
-      const scale = availW / canvas.width;
-      const imgW = availW;
-      const pageSliceHeightPx = Math.max(50, Math.floor(availH / scale));
-      let renderedPx = 0;
-      let firstSlice = true;
-      while(renderedPx < canvas.height){
-        const thisSlicePx = Math.min(pageSliceHeightPx, canvas.height - renderedPx);
-        const sliceCanvas = document.createElement('canvas');
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = thisSlicePx;
-        const sctx = sliceCanvas.getContext('2d');
-        sctx.fillStyle = '#ffffff';
-        sctx.fillRect(0,0,sliceCanvas.width, sliceCanvas.height);
-        sctx.drawImage(canvas, 0, renderedPx, canvas.width, thisSlicePx, 0, 0, canvas.width, thisSlicePx);
-        const sliceImgH = thisSlicePx * scale;
-        if(!firstSlice) doc.addPage();
-        doc.addImage(sliceCanvas.toDataURL('image/png',1.0), 'PNG', marginX, marginY, imgW, sliceImgH);
-        renderedPx += thisSlicePx;
-        firstSlice = false;
-      }
-    } finally {
-      document.body.removeChild(wrap);
-    }
+  function pageHtml(pageTitle, tables, stackVertically, pageBreakBefore){
+    let body = `<div style="${pageBreakBefore?'page-break-before:always;':''}font-family:Hind,'Noto Sans Devanagari',Arial,sans-serif;color:#101828;padding:10px 4px">`;
+    body += `<div style="font-size:17px;font-weight:700;color:#1E2A45;margin-bottom:5px;">${pageTitle}</div>`;
+    if(filtersLine) body += `<div style="font-size:10.5px;color:#64748B;margin-bottom:3px;">${filtersLine}</div>`;
+    body += `<div style="font-size:9.5px;color:#64748B;margin-bottom:8px;">${dtLine}</div>`;
+    if(stackVertically) tables.forEach(t=>{ body += `<div style="margin-bottom:14px;">${t.outerHTML}</div>`; });
+    else tables.forEach(t=>{ body += t.outerHTML; });
+    body += `</div>`;
+    return resolvePrintVarsHTML(body);
   }
 
-  if(mainTables.length) await renderTablesToCurrentPage(mainTables, title, false);
-  if(ioTables.length){
-    if(mainTables.length) doc.addPage();
-    // टॉप 15 व बॉटम 15 तालिकाएँ ऊपर-नीचे (एक के बाद एक) रखी जाती हैं ताकि हर कॉलम पढ़ने लायक चौड़ाई मिले
-    await renderTablesToCurrentPage(ioTables, title + ' — अनुसंधान अधिकारी टॉप/बॉटम 15', true);
-  }
-  doc.save(filename);
-  toast('✅ PDF डाउनलोड हो रहा है');
+  let full = pageHtml(title, mainTables, false, false);
+  if(ioTables.length) full += pageHtml(title + ' — अनुसंधान अधिकारी टॉप/बॉटम 15', ioTables, true, mainTables.length>0);
+
+  const w = window.open('', '_blank');
+  if(!w){ toast('⚠️ पॉप-अप ब्लॉक हो गया — कृपया इस साइट के लिए पॉप-अप की अनुमति दें'); return; }
+  w.document.write(`<html><head><meta charset="utf-8"><title>${title}</title>
+    <style>
+      body{margin:16px}
+      table{width:100%;border-collapse:collapse;table-layout:auto;font-size:10.5px;margin-bottom:10px}
+      th{border:1px solid #C7CDD9;padding:3px;background:#1E2A45;color:#fff;font-size:9.5px;white-space:normal;word-break:break-word;line-height:1.3}
+      td{border:1px solid #C7CDD9;padding:2.5px 3px;white-space:nowrap;line-height:1.3}
+      @page{size:A4 portrait;margin:12mm}
+      @media print{ body{margin:0} }
+    </style></head><body>${full}</body></html>`);
+  w.document.close();
+  toast('🖨️ प्रिंट विंडो खुल रही है — वहां डेस्टिनेशन में "Save as PDF" चुनें');
+  setTimeout(()=>{ w.focus(); w.print(); }, 450);
 }
 // browser resolves inline style backgrounds to 'rgb(r, g, b)' or leaves hex '#rrggbb' depending on context — handle both
 function parseColorToRgbArr(colorStr){
@@ -12351,6 +12516,7 @@ function cpOpenEntry(pageId, fmtKey){
   if(pullBtn) pullBtn.style.display = isSyncConfigured() ? 'inline-block' : 'none';
   const shareBtnCp=document.getElementById('entry-share-link-btn');
   if(shareBtnCp) shareBtnCp.style.display = 'inline-block';
+  applyLockUIIfNeeded();
   document.getElementById('entry-overlay').classList.add('on');
   document.body.style.overflow='hidden';
 }
